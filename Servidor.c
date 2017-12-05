@@ -36,6 +36,8 @@ void *RecebeJogadores(void *dados);
 int VerificaCliente(Cliente *cl, Cliente c);
 Cliente *LeClientes();
 void GravaClientes(Cliente *clientes);
+int Conta(Cliente *c);
+
 
 int main(int argc, char** argv) {
     Cliente *clientes = LeClientes();
@@ -346,7 +348,21 @@ void *RecebeJogadores(void *dados) {
     Objecto *ob;
     PassarThread *x = (PassarThread*) dados;
     pthread_t envia;
-
+    const char* s = getenv("NMAXPLAY");
+    int nPlayers=0;
+    if(s == NULL)
+    {
+        srand( (unsigned)time(NULL) );
+        nPlayers = 1 + ( rand() % 20);
+    }
+    else
+    {
+        nPlayers = atoi(s);
+    }
+    
+    printf("Players: %d\n",nPlayers);
+    fflush(stdout);
+    
     Cliente *Clientes = x->clientes;
 
     ob = x->objectos;
@@ -357,6 +373,14 @@ void *RecebeJogadores(void *dados) {
     fd = open(FIFOLOGIN, O_RDONLY);
 
     while (*Sair == 0) {
+        if (Conta(Clientes) == nPlayers) {
+            printf("\nLimite de Clientes atingido\n");
+            fflush(stdout);
+            
+            close(fd);
+            unlink(FIFOLOGIN);
+            pthread_exit(0);
+        }
         i = read(fd, &c, sizeof (c));
 
         if (i == sizeof (c)) {
@@ -403,4 +427,17 @@ int VerificaCliente(Cliente *cl, Cliente c) {
         it = (Cliente*) it->p;
     }
     return -1;
+}
+
+int Conta(Cliente *c) {
+    int i = 0;
+
+    c = c->p;
+
+    while (c != NULL) {
+        i++;
+        c = c->p;
+    }
+
+    return i;
 }
