@@ -15,7 +15,9 @@
 Cliente* Inicio(Cliente *c);
 void LimpaStdin(void);
 int EnviaDadosLogin(Cliente *c);
-void *RecebeObjetos(void *dados);
+Objecto* RecebeObjetos();
+void MostraLabirinto(Objecto *ob);
+void gotoxy(int x, int y);
 
 int main(int argc, char** argv) {
     Cliente c;
@@ -23,6 +25,7 @@ int main(int argc, char** argv) {
     int fd;
     pthread_t recebe;
     int Sair = 0;
+    Objecto *ob;
 
     sprintf(str, "../JJJ%d", getpid());
     mkfifo(str, 0600);
@@ -31,7 +34,10 @@ int main(int argc, char** argv) {
         Inicio(&c);
     } while (EnviaDadosLogin(&c) == -1);
     
-    pthread_create(&recebe, NULL, &RecebeObjetos, (void*) &Sair);
+    ob = RecebeObjetos();
+    printf("SAIU");
+    MostraLabirinto(ob);
+    //pthread_create(&recebe, NULL, &RecebeObjetos, (void*) &Sair);
     while (1) {
 
     }
@@ -120,10 +126,12 @@ int EnviaDadosLogin(Cliente *c) {
 
 ///THREAD  QUE RECEBE OS OBJETOS DO SERVIDOR
 
-void *RecebeObjetos(void *dados) {
-    int *Sair = (int*) dados;
+Objecto* RecebeObjetos()
+{
     int fd, i;
     char str[50];
+    Objecto *arrayb = NULL;
+    Objecto *ul;
     Objecto b;
 
     sprintf(str, "../JJJ%d", getpid());
@@ -135,13 +143,61 @@ void *RecebeObjetos(void *dados) {
         pthread_exit(0);
     }
 
-    while (Sair == 0) {
+    while (1) {
         i = read(fd, &b, sizeof (b));
-        printf("LEU\n");
-        fflush(stdout);
         if (i == sizeof (b)) {
-            printf("RECEBEU: %d", b.id);
-            fflush(stdout);
+            printf("LEU: %d\n",b.id);
+            
+            if(b.id == -1)
+            {
+                printf("FOI\n");
+                break;
+                break;
+            }
+            if(arrayb == NULL)
+            {
+                arrayb = (Objecto*) malloc(sizeof(b));
+                arrayb->ativo = b.ativo;
+                arrayb->id = b.id;
+                arrayb->tipo = b.tipo;
+                arrayb->x = b.x;
+                arrayb->y = b.y;
+                arrayb->p = NULL;
+                ul = arrayb;
+            }
+            else
+            {
+                ul->p = (Objecto*) malloc(sizeof(b));
+                ul->p->ativo = b.ativo;
+                ul->p->id = b.id;
+                ul->p->tipo = b.tipo;
+                ul->p->x = b.x;
+                ul->p->y = b.y;
+                ul->p->p = NULL;
+                ul = ul->p;
+            }
         }
     }
+    printf("ACABOU\n");
+    close(fd);
+    return arrayb;
+}
+
+
+
+void MostraLabirinto(Objecto *ob) {
+    Objecto *it;
+    it = ob;
+
+    while (it != NULL) {
+        gotoxy(it->x, it->y);
+        printf("%d", it->tipo);
+        it = it->p;
+    }
+}
+
+////GOTOXY
+
+void gotoxy(int x, int y) {
+    printf("%c[%d;%df", 0x1B, y, x);
 }

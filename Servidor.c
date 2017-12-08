@@ -447,6 +447,8 @@ void *EnviaDadosJagador(void *dados) {
     PassarThreadJogo *x = (PassarThreadJogo*) dados;
     Cliente *it;
     Objecto *itb;
+    Objecto final;
+    final.id = -1;
     char str[50];
     int fd;
 
@@ -460,18 +462,18 @@ void *EnviaDadosJagador(void *dados) {
         if (fd == -1) {
             printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
             fflush(stdout);
-        } else 
+        } 
+        else 
         {
             itb = x->objectos;
             while (itb != NULL) {
-
                 printf("ESCREVEU: %d\n", itb->id);
                 fflush(stdout);
-                write(fd, itb, sizeof (Objecto));
-                close(fd);
+                write(fd, itb, sizeof (Objecto));               
                 itb = itb->p;
             }
-            
+            write(fd, &final, sizeof (Objecto));      
+            close(fd);            
         }
 
         it = it->p;
