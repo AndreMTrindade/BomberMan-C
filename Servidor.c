@@ -22,6 +22,7 @@ typedef struct {
 } PassarThread;
 
 typedef struct {
+    Cliente *clientes;
     Objecto *objectos;
     int* Sair;
 } PassarThreadJogo;
@@ -36,12 +37,11 @@ char* UpString(char *s);
 Cliente* AdicionaCliente(Palavra *p, Cliente *c);
 void Users(Cliente *c);
 void *RecebeJogadores(void *dados);
-void *EnivaDadosJagador(void *dados)
+void *EnviaDadosJagador(void *dados);
 int VerificaCliente(Cliente *cl, Cliente c);
 Cliente *LeClientes();
 void GravaClientes(Cliente *clientes);
 int Conta(Cliente *c);
-
 
 int main(int argc, char** argv) {
     Cliente *clientes = LeClientes();
@@ -58,6 +58,7 @@ int main(int argc, char** argv) {
 }
 
 ////FUNÇÃO QUE LE OS COMANDOS INSERIDOS
+
 Cliente* Shell(Cliente *clientes) {
     char comando[50];
     Palavra *it;
@@ -119,6 +120,7 @@ Cliente* Shell(Cliente *clientes) {
 
 ///DEVOLVE UMA ARRAY DE PALAVRAS
 ///// DIVIDE EM PALAVRAS A FRASE INSERIDA
+
 Palavra* DevolvePalavras(char* frase) {
     Palavra *p = NULL;
     Palavra *novo = NULL;
@@ -152,6 +154,7 @@ Palavra* DevolvePalavras(char* frase) {
 }
 
 ////FUNÇÃO PARA APANHAR OS ESPAÇOS EM BRANCO
+
 void LimpaStdin(void) {
     int c;
     do {
@@ -160,6 +163,7 @@ void LimpaStdin(void) {
 }
 
 ///FUNÇÃO PARA DEVOLVER O NUMERO CORRESPONDENTE AO COMANDO INSERIDO
+
 int ProcessaComando(Palavra *p) {
     if (p == NULL) {
         printf("aa");
@@ -208,6 +212,7 @@ int ProcessaComando(Palavra *p) {
 }
 
 ////TAMANHO DE IMA PALAVRA
+
 int Size(Palavra *p) {
     int contar = 0;
     Palavra *it = p;
@@ -221,6 +226,7 @@ int Size(Palavra *p) {
 
 ///TRANSFORMA A STRING
 //// COLOCA TODOS OS CARACTERES EM MAIUSCULA
+
 char* UpString(char *s) {
     int i = 0;
     while (s[i] != '\0') {
@@ -231,6 +237,7 @@ char* UpString(char *s) {
 }
 
 ///FUNÇÃO PARA ADICIONAR CLIENTES
+
 Cliente* AdicionaCliente(Palavra *p, Cliente *c) {
 
     Palavra *it;
@@ -285,6 +292,7 @@ Cliente* AdicionaCliente(Palavra *p, Cliente *c) {
 }
 
 ////FUNÇAO PARA LISTAR TODOS OS CLIENTES
+
 void Users(Cliente *c) {
     Cliente *it;
     int i = 1;
@@ -300,6 +308,7 @@ void Users(Cliente *c) {
 }
 
 /// LE OS CLIENTES DO FICHEIRO DE TEXTO
+
 Cliente* LeClientes() {
     FILE *fd = fopen("clientes.txt", "rt");
     Cliente *clientes = malloc(sizeof (Cliente));
@@ -340,6 +349,7 @@ Cliente* LeClientes() {
 }
 
 ///GRAVA CLIENTES NO FICHEIRO DE TEXTO
+
 void GravaClientes(Cliente *clientes) {
     unlink("clientes.txt");
     FILE *fd = fopen("clientes.txt", "wt");
@@ -356,6 +366,7 @@ void GravaClientes(Cliente *clientes) {
 }
 
 ///RECEBE O JOGADORES (CLIENTES)
+
 void *RecebeJogadores(void *dados) {
     char str[80];
     int fd, fd_resp, i;
@@ -364,31 +375,28 @@ void *RecebeJogadores(void *dados) {
     Cliente c;
     Objecto *ob;
     PassarThread *x = (PassarThread*) dados;
-    PassarThreadJogo *d = (PassarThreadJogo*)malloc(sizeof(PassarThreadJogo));
+    PassarThreadJogo *d = (PassarThreadJogo*) malloc(sizeof (PassarThreadJogo));
     pthread_t envia;
     const char* s = getenv("NMAXPLAY");
-    int nPlayers=0;
-    if(s == NULL)
-    {
-        srand( (unsigned)time(NULL) );
-        nPlayers = 1 + ( rand() % 20);
-    }
-    else
-    {
+    int nPlayers = 0;
+    if (s == NULL) {
+        srand((unsigned) time(NULL));
+        nPlayers = 1 + (rand() % 20);
+    } else {
         nPlayers = atoi(s);
     }
-    
-    printf("Players: %d\n",nPlayers);
+
+    printf("Players: %d\n", nPlayers);
     fflush(stdout);
-    
+
     Cliente *Clientes = x->clientes;
 
     d->Sair = x->Sair;
     d->objectos = ob;
-    
+    d->clientes = Clientes;
     ob = x->objectos;
     Sair = x->Sair;
-    
+
     mkfifo(FIFOLOGIN, 0600);
 
     fd = open(FIFOLOGIN, O_RDONLY);
@@ -397,9 +405,9 @@ void *RecebeJogadores(void *dados) {
         if (Conta(Clientes) == nPlayers) {
             printf("\nLimite de Clientes atingido\n");
             fflush(stdout);
-            
+
             close(fd);
-            unlink(FIFOLOGIN);
+            pthread_create(&envia, NULL, &EnviaDadosJagador, (void *) d);
             pthread_exit(0);
         }
         i = read(fd, &c, sizeof (c));
@@ -420,13 +428,7 @@ void *RecebeJogadores(void *dados) {
                 write(fd_resp, &res, sizeof (res));
                 close(fd_resp);
                 unlink(str);
-                
-                if(res == 1)
-                {
-                        pthread_create(&envia, NULL, &EnviaDadosJagador, (void *) d);
-                }
             }
-            close(fd_resp);
         }
 
     }
@@ -436,13 +438,33 @@ void *RecebeJogadores(void *dados) {
     pthread_exit(0);
 
 }
+
 ///THREAD DE CADA JOGADOR PARA ENVIAR OS DADOS DO JOGO
-void *EnivaDadosJagador(void *dados)
-{
-    
-}   
+
+void *EnviaDadosJagador(void *dados) {
+    PassarThreadJogo *x = (PassarThreadJogo*) dados;
+    Cliente *it;
+    Objecto *itb;
+    char str[50];
+    int fd;
+
+    itb = x->objectos;
+    it = x->clientes;
+
+    while (itb != NULL) {
+        while (it != NULL) {
+            sprintf(str, "../JJJ%d", it->PID);
+            fd = open(str, O_WRONLY);
+            write(fd, itb, sizeof (Objecto));
+            close(fd);
+            it = it->p;
+        }
+        itb = itb->p;
+    }
+}
 
 /// VERIFICA SE O CLIENTE EXISTE E SE JÁ ESTÁ ONLINE
+
 int VerificaCliente(Cliente *cl, Cliente c) {
     Cliente *it;
     it = cl;
@@ -462,6 +484,7 @@ int VerificaCliente(Cliente *cl, Cliente c) {
 }
 
 /// CONTA O NUMERO DE CLIENTES 
+
 int Conta(Cliente *c) {
     int i = 0;
 
