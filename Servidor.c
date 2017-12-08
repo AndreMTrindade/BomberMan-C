@@ -27,6 +27,7 @@ typedef struct {
     int* Sair;
 } PassarThreadJogo;
 
+static int id = 0;
 
 Cliente* Shell(Cliente *clientes);
 Palavra* DevolvePalavras(char* frase);
@@ -42,10 +43,12 @@ int VerificaCliente(Cliente *cl, Cliente c);
 Cliente *LeClientes();
 void GravaClientes(Cliente *clientes);
 int Conta(Cliente *c);
+Objecto* LeLabirinto();
+void gotoxy(int x, int y);
+void MostraLabirinto(Objecto *ob);
 
 int main(int argc, char** argv) {
     Cliente *clientes = LeClientes();
-
     if (access(FIFOLOGIN, F_OK) == 0) {
         printf("Já está a ser executado um Servidor!..\n");
         return 1;
@@ -68,6 +71,7 @@ Cliente* Shell(Cliente *clientes) {
     pthread_t recebe;
     Objecto *ob = NULL;
     PassarThread *x = (PassarThread*) malloc(sizeof (PassarThread));
+    ob = LeLabirinto();
     x->clientes = clientes;
     x->Sair = &Sair;
     x->objectos = ob;
@@ -390,6 +394,7 @@ void *RecebeJogadores(void *dados) {
     fflush(stdout);
 
     Cliente *Clientes = x->clientes;
+    ob = x->objectos;
 
     d->Sair = x->Sair;
     d->objectos = ob;
@@ -402,32 +407,29 @@ void *RecebeJogadores(void *dados) {
     fd = open(FIFOLOGIN, O_RDONLY);
 
     while (*Sair == 0) {
-        if (Conta(Clientes) == nPlayers) {
-            printf("\nLimite de Clientes atingido\n");
-            fflush(stdout);
 
-            close(fd);
-            pthread_create(&envia, NULL, &EnviaDadosJagador, (void *) d);
-            pthread_exit(0);
-        }
         i = read(fd, &c, sizeof (c));
 
         if (i == sizeof (c)) {
-            res = VerificaCliente(Clientes, c);
-
             sprintf(str, "../JJJ%d", c.PID);
 
             fd_resp = open(str, O_WRONLY);
             if (fd_resp == -1) {
                 printf("Erro %d\n", c.PID);
                 fflush(stdout);
-                unlink(str);
-
             } else {
-
+                res = VerificaCliente(Clientes, c);
                 write(fd_resp, &res, sizeof (res));
                 close(fd_resp);
-                unlink(str);
+
+                if (Conta(Clientes) == 1) {//ALTERAR
+                    printf("\nLimite de Clientes atingido\n");
+                    fflush(stdout);
+                    close(fd);
+                    sleep(1);
+                    pthread_create(&envia, NULL, &EnviaDadosJagador, (void *) d);
+                    pthread_exit(0);
+                }
             }
         }
 
@@ -450,16 +452,29 @@ void *EnviaDadosJagador(void *dados) {
 
     itb = x->objectos;
     it = x->clientes;
+    it = it->p;
 
-    while (itb != NULL) {
-        while (it != NULL) {
-            sprintf(str, "../JJJ%d", it->PID);
-            fd = open(str, O_WRONLY);
-            write(fd, itb, sizeof (Objecto));
-            close(fd);
-            it = it->p;
+    while (it != NULL) {
+        sprintf(str, "../JJJ%d", it->PID);
+        fd = open(str, O_WRONLY);
+        if (fd == -1) {
+            printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
+            fflush(stdout);
+        } else 
+        {
+            itb = x->objectos;
+            while (itb != NULL) {
+
+                printf("ESCREVEU: %d\n", itb->id);
+                fflush(stdout);
+                write(fd, itb, sizeof (Objecto));
+                close(fd);
+                itb = itb->p;
+            }
+            
         }
-        itb = itb->p;
+
+        it = it->p;
     }
 }
 
@@ -496,4 +511,86 @@ int Conta(Cliente *c) {
     }
 
     return i;
+}
+
+///FUNÇÃO QUE LE DE UM FICHEIRO O LABIRINTO
+
+Objecto* LeLabirinto() {
+    FILE *fd = fopen("Labirinto.txt", "rt");
+    char c;
+    Objecto *ob = NULL;
+    Objecto *ultimo = NULL;
+    int x, y = 0;
+
+    while ((c = getc(fd)) != EOF) {
+        if (c == '\n') {
+            x = 0;
+            y++;
+        } else {
+            if (c == '1') {
+                if (ob == NULL) {
+                    ob = (Objecto*) malloc(sizeof (Objecto));
+                    ob->ativo = 1;
+                    ob->id = ++id;
+                    ob->tipo = 0;
+                    ob->x = x;
+                    ob->y = y;
+                    ob->p = NULL;
+                    ultimo = ob;
+                } else {
+                    ultimo->p = (Objecto*) malloc(sizeof (Objecto));
+                    ultimo->p->ativo = 1;
+                    ultimo->p->id = ++id;
+                    ultimo->p->x = x;
+                    ultimo->p->y = y;
+                    ultimo->p->tipo = 1;
+                    ultimo->p->p = NULL;
+                    ultimo = ultimo->p;
+                }
+            } else {
+                if (c == 'S') {
+                    if (ob == NULL) {
+                        ob = (Objecto*) malloc(sizeof (Objecto));
+                        ob->ativo = 1;
+                        ob->id = ++id;
+                        ob->tipo = 3;
+                        ob->x = x;
+                        ob->y = y;
+                        ob->p = NULL;
+                        ultimo = ob;
+                    } else {
+                        ultimo->p = (Objecto*) malloc(sizeof (Objecto));
+                        ultimo->p->ativo = 3;
+                        ultimo->p->id = ++id;
+                        ultimo->p->x = x;
+                        ultimo->p->y = y;
+                        ultimo->p->tipo = 1;
+                        ultimo->p->p = NULL;
+                        ultimo = ultimo->p;
+                    }
+                }
+            }
+        }
+        x++;
+    }
+    return ob;
+}
+
+//FUNÇÃO QUE MOSTRA AS POSIÇOES DOS OBJETOS
+
+void MostraLabirinto(Objecto *ob) {
+    Objecto *it;
+    it = ob;
+
+    while (it != NULL) {
+        gotoxy(it->x, it->y);
+        printf("%d", it->tipo);
+        it = it->p;
+    }
+}
+
+////GOTOXY
+
+void gotoxy(int x, int y) {
+    printf("%c[%d;%df", 0x1B, y, x);
 }
