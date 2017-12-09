@@ -674,7 +674,4 @@ void TrataAccao(Objecto *b, Jogada j) {
             }
             it = it->p;
         }
-
-
-
 }
