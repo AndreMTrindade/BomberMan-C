@@ -46,6 +46,7 @@ int Conta(Cliente *c);
 Objecto* LeLabirinto();
 void gotoxy(int x, int y);
 void MostraLabirinto(Objecto *ob);
+void *CorpoJogo(void *dados);
 
 int main(int argc, char** argv) {
     Cliente *clientes = LeClientes();
@@ -425,6 +426,7 @@ void *RecebeJogadores(void *dados) {
                     printf("\nLimite de Clientes atingido\n");
                     fflush(stdout);
                     close(fd);
+                    unlink(FIFOLOGIN);
                     sleep(1);
                     pthread_create(&envia, NULL, &EnviaDadosJagador, (void *) d);
                     pthread_exit(0);
@@ -450,6 +452,7 @@ void *EnviaDadosJagador(void *dados) {
     final.id = -1;
     char str[50];
     int fd;
+    pthread_t atualiza;
 
     itb = x->objectos;
     it = x->clientes;
@@ -462,8 +465,7 @@ void *EnviaDadosJagador(void *dados) {
             if (fd == -1) {
                 printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
                 fflush(stdout);
-            }
-            else {
+            } else {
                 itb = x->objectos;
                 while (itb != NULL) {
                     printf("ESCREVEU: %d\n", itb->id);
@@ -478,6 +480,8 @@ void *EnviaDadosJagador(void *dados) {
 
         it = it->p;
     }
+    pthread_create(&atualiza, NULL, &CorpoJogo, (void *) x);
+    pthread_exit(0);
 }
 
 /// VERIFICA SE O CLIENTE EXISTE E SE JÁ ESTÁ ONLINE
@@ -597,4 +601,80 @@ void MostraLabirinto(Objecto *ob) {
 
 void gotoxy(int x, int y) {
     printf("%c[%d;%df", 0x1B, y, x);
+}
+
+void *CorpoJogo(void *dados) {
+    PassarThreadJogo *x = (PassarThreadJogo*) dados;
+    Jogada j;
+    int i, fd;
+
+    mkfifo(FIFOJOGO, 0600);
+    fd = open(FIFOJOGO, O_RDONLY);
+
+    if (fd == -1) {
+        printf("Erro ao abrir FIFOJOGO\n");
+        pthread_exit(0);
+    }
+
+    while (*(x->Sair) == 0) {
+        i = read(fd, &j, sizeof (j));
+        if (i == sizeof (j)) {
+            (
+
+                    TrataAccao(x->objectos, j);
+        }
+    }
+}
+
+void TrataAccao(Objecto *b, Jogada j) {
+    if (VerificaJogador(j.PID) == -1)
+        return;
+
+        Objecto * it = b;
+        Objecto novo;
+            char tecla;
+            int fd;
+            char str[50];
+
+        while (it != NULL) {
+            if (it->tipo == j.PID * 10000) {
+                tecla = j.ascii;
+                sprintf(str, "../JJJ%d", j.PID);
+                fd = open(str, O_WRONLY);
+                
+                if (fd == -1) {
+                    printf("Erro ao Abrir FIFO CLIENTE %d", j.PID);
+                    fflush(stdout);
+                    break;
+                } else {
+                    if (toupper(j) == 'W' || tecla == 30) {
+                        if ((novo = VerificaMovimento(1, b, it->id)) == 1) {
+                            write(fd,novo,sizeof(novo));
+                            close(fd);
+                        }
+                    } else {
+                        if (toupper(tecla) == 'S' || tecla == 31) {
+                            envia = 1;
+                        } else {
+                            if (toupper(tecla) == 'D' || tecla == 16) {
+                                envia = 1;
+                            } else {
+                                if (toupper(tecla) == 'A' || tecla == 17) {
+                                    envia = 1;
+                                } else {
+                                    if (toupper(tecla) == 'A' || tecla == 17) {
+                                        envia = 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+            it = it->p;
+        }
+
+
+
 }

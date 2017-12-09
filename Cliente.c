@@ -8,7 +8,10 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
+#include <ncurses.h>
+
 #include "Estruturas.h"
+
 
 #define clear printf("\033[H\033[J")
 
@@ -25,6 +28,8 @@ int main(int argc, char** argv) {
     int fd;
     pthread_t recebe;
     int Sair = 0;
+    int envia = 0;
+    char tecla;
     Objecto *ob;
 
     sprintf(str, "../JJJ%d", getpid());
@@ -33,10 +38,43 @@ int main(int argc, char** argv) {
         clear;
         Inicio(&c);
     } while (EnviaDadosLogin(&c) == -1);
-    
+
     ob = RecebeObjetosIniciais();
-    MostraLabirinto(ob);
+    //MostraLabirinto(ob);
     //pthread_create(&recebe, NULL, &RecebeObjetos, (void*) &Sair);
+
+
+    while (1) {
+        envia = 0;
+        tecla = getchar();
+        if (toupper(tecla) == 'W' || tecla == 30) {
+            envia = 1;
+        } else {
+            if (toupper(tecla) == 'S' || tecla == 31) {
+                envia = 1;
+            } else {
+                if (toupper(tecla) == 'D' || tecla == 16) {
+                    envia = 1;
+                } else {
+                    if (toupper(tecla) == 'A' || tecla == 17) {
+                        envia = 1;
+                    } else {
+                        if (toupper(tecla) == 'A' || tecla == 17) {
+                            envia = 1;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if(envia == 1)
+        {
+            ///ENVIA PARA Servidor
+            
+        }
+
+
+    }
     return (EXIT_SUCCESS);
 }
 
@@ -122,8 +160,7 @@ int EnviaDadosLogin(Cliente *c) {
 
 ///THREAD  QUE RECEBE OS OBJETOS DO SERVIDOR
 
-Objecto* RecebeObjetosIniciais()
-{
+Objecto* RecebeObjetosIniciais() {
     int fd, i;
     char str[50];
     Objecto *arrayb = NULL;
@@ -131,7 +168,7 @@ Objecto* RecebeObjetosIniciais()
     Objecto b;
 
     sprintf(str, "../JJJ%d", getpid());
-    
+
     fd = open(str, O_RDONLY);
     if (fd == -1) {
         printf("<ERRO> Erro ao abrir o Ficheiro FIFO\n");
@@ -141,18 +178,16 @@ Objecto* RecebeObjetosIniciais()
 
     while (1) {
         i = read(fd, &b, sizeof (b));
-       printf("Recebeu: %d\n",b.id);
-       fflush(stdout);
+        printf("Recebeu: %d\n", b.id);
+        fflush(stdout);
         if (i == sizeof (b)) {
 
-            if(b.id == -1)
-            {
+            if (b.id == -1) {
                 break;
                 break;
             }
-            if(arrayb == NULL)
-            {
-                arrayb = (Objecto*) malloc(sizeof(b));
+            if (arrayb == NULL) {
+                arrayb = (Objecto*) malloc(sizeof (b));
                 arrayb->ativo = b.ativo;
                 arrayb->id = b.id;
                 arrayb->tipo = b.tipo;
@@ -160,10 +195,8 @@ Objecto* RecebeObjetosIniciais()
                 arrayb->y = b.y;
                 arrayb->p = NULL;
                 ul = arrayb;
-            }
-            else
-            {
-                ul->p = (Objecto*) malloc(sizeof(b));
+            } else {
+                ul->p = (Objecto*) malloc(sizeof (b));
                 ul->p->ativo = b.ativo;
                 ul->p->id = b.id;
                 ul->p->tipo = b.tipo;
@@ -179,8 +212,6 @@ Objecto* RecebeObjetosIniciais()
     return arrayb;
     return arrayb;
 }
-
-
 
 void MostraLabirinto(Objecto *ob) {
     Objecto *it;
