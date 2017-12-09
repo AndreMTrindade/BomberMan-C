@@ -15,7 +15,7 @@
 Cliente* Inicio(Cliente *c);
 void LimpaStdin(void);
 int EnviaDadosLogin(Cliente *c);
-Objecto* RecebeObjetos();
+Objecto* RecebeObjetosIniciais();
 void MostraLabirinto(Objecto *ob);
 void gotoxy(int x, int y);
 
@@ -34,13 +34,9 @@ int main(int argc, char** argv) {
         Inicio(&c);
     } while (EnviaDadosLogin(&c) == -1);
     
-    ob = RecebeObjetos();
-    printf("SAIU");
+    ob = RecebeObjetosIniciais();
     MostraLabirinto(ob);
     //pthread_create(&recebe, NULL, &RecebeObjetos, (void*) &Sair);
-    while (1) {
-
-    }
     return (EXIT_SUCCESS);
 }
 
@@ -126,7 +122,7 @@ int EnviaDadosLogin(Cliente *c) {
 
 ///THREAD  QUE RECEBE OS OBJETOS DO SERVIDOR
 
-Objecto* RecebeObjetos()
+Objecto* RecebeObjetosIniciais()
 {
     int fd, i;
     char str[50];
@@ -145,12 +141,12 @@ Objecto* RecebeObjetos()
 
     while (1) {
         i = read(fd, &b, sizeof (b));
+       printf("Recebeu: %d\n",b.id);
+       fflush(stdout);
         if (i == sizeof (b)) {
-            printf("LEU: %d\n",b.id);
-            
+
             if(b.id == -1)
             {
-                printf("FOI\n");
                 break;
                 break;
             }
@@ -178,8 +174,9 @@ Objecto* RecebeObjetos()
             }
         }
     }
-    printf("ACABOU\n");
     close(fd);
+    printf("ACABOU");
+    return arrayb;
     return arrayb;
 }
 

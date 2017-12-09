@@ -421,7 +421,6 @@ void *RecebeJogadores(void *dados) {
                 res = VerificaCliente(Clientes, c);
                 write(fd_resp, &res, sizeof (res));
                 close(fd_resp);
-
                 if (Conta(Clientes) == 1) {//ALTERAR
                     printf("\nLimite de Clientes atingido\n");
                     fflush(stdout);
@@ -457,23 +456,24 @@ void *EnviaDadosJagador(void *dados) {
     it = it->p;
 
     while (it != NULL) {
-        sprintf(str, "../JJJ%d", it->PID);
-        fd = open(str, O_WRONLY);
-        if (fd == -1) {
-            printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
-            fflush(stdout);
-        } 
-        else 
-        {
-            itb = x->objectos;
-            while (itb != NULL) {
-                printf("ESCREVEU: %d\n", itb->id);
+        if (it->Ajogar == 1) {
+            sprintf(str, "../JJJ%d", it->PID);
+            fd = open(str, O_WRONLY);
+            if (fd == -1) {
+                printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
                 fflush(stdout);
-                write(fd, itb, sizeof (Objecto));               
-                itb = itb->p;
             }
-            write(fd, &final, sizeof (Objecto));      
-            close(fd);            
+            else {
+                itb = x->objectos;
+                while (itb != NULL) {
+                    printf("ESCREVEU: %d\n", itb->id);
+                    fflush(stdout);
+                    write(fd, itb, sizeof (Objecto));
+                    itb = itb->p;
+                }
+                write(fd, &final, sizeof (Objecto));
+                close(fd);
+            }
         }
 
         it = it->p;
@@ -508,7 +508,9 @@ int Conta(Cliente *c) {
     c = c->p;
 
     while (c != NULL) {
-        i++;
+        if (c->Ajogar == 1) {
+            i++;
+        }
         c = c->p;
     }
 
