@@ -44,6 +44,9 @@
             flavor2="0">
       </item>
       <item path="Cliente.c" ex="false" tool="0" flavor2="0">
+        <cTool>
+          <commandLine>- lpthread -lncurses</commandLine>
+        </cTool>
       </item>
       <item path="Servidor.c" ex="false" tool="0" flavor2="0">
       </item>

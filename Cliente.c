@@ -12,8 +12,18 @@
 
 #include "Estruturas.h"
 
+typedef struct {
+    char ascii;
+    int PID;
+} Jogada;
 
-#define clear printf("\033[H\033[J")
+typedef struct {
+    Objecto *ob;
+    int *Sair;
+} PassaThread;
+
+
+
 
 Cliente* Inicio(Cliente *c);
 void LimpaStdin(void);
@@ -21,60 +31,124 @@ int EnviaDadosLogin(Cliente *c);
 Objecto* RecebeObjetosIniciais();
 void MostraLabirinto(Objecto *ob);
 void gotoxy(int x, int y);
+void *AtualizaEcra(void *dados);
+void Imprime(Objecto *ob);
 
 int main(int argc, char** argv) {
     Cliente c;
     char str[50];
     int fd;
-    pthread_t recebe;
     int Sair = 0;
-    int envia = 0;
+    int envia = 0, i;
     char tecla;
     Objecto *ob;
+    Jogada j;
+    Objecto b;
+    Objecto *it;
+
+    fd_set rfds;
+    struct timeval t;
+    int resultado;
+    
+     WINDOW * mainwin;
 
     sprintf(str, "../JJJ%d", getpid());
     mkfifo(str, 0600);
+
     do {
         clear;
         Inicio(&c);
     } while (EnviaDadosLogin(&c) == -1);
 
     ob = RecebeObjetosIniciais();
-    //MostraLabirinto(ob);
-    //pthread_create(&recebe, NULL, &RecebeObjetos, (void*) &Sair);
+    
+    if ((mainwin = initscr()) == NULL) {
+        fprintf(stderr, "Error initialising ncurses.\n");
+        exit(EXIT_FAILURE);
+    }
 
+    sprintf(str, "../JJJ%d", getpid());
+    fd = open(str, O_RDWR);
+    
+    noecho();              
+    keypad(mainwin, TRUE);  
+    curs_set(0);
+    Imprime(ob);
+    
+    do {
+        FD_ZERO(&rfds);
+        FD_SET(0, &rfds); // atençao ao telcado
+        FD_SET(fd, &rfds);
+        t.tv_sec = 3;
+        t.tv_usec = 500000;
 
-    while (1) {
-        envia = 0;
-        tecla = getchar();
-        if (toupper(tecla) == 'W' || tecla == 30) {
-            envia = 1;
-        } else {
-            if (toupper(tecla) == 'S' || tecla == 31) {
+        resultado = select(fd + 1, &rfds, NULL, NULL, &t); // espera
+
+        if (FD_ISSET(0, &rfds)) // Há dados, No teclado
+        {
+            envia = 0;
+            scanf("%c", &tecla);
+            if (toupper(tecla) == 'W' || tecla == 30) {
                 envia = 1;
             } else {
-                if (toupper(tecla) == 'D' || tecla == 16) {
+                if (toupper(tecla) == 'S' || tecla == 31) {
                     envia = 1;
                 } else {
-                    if (toupper(tecla) == 'A' || tecla == 17) {
+                    if (toupper(tecla) == 'D' || tecla == 16) {
                         envia = 1;
                     } else {
                         if (toupper(tecla) == 'A' || tecla == 17) {
                             envia = 1;
+                        } else {
+                            if (toupper(tecla) == 'A' || tecla == 17) {
+                                envia = 1;
+                            }
                         }
                     }
                 }
             }
-        }
-        
-        if(envia == 1)
-        {
-            ///ENVIA PARA Servidor
-            
+
+            if (envia == 1) {
+                fd = open("../MMM", O_WRONLY);
+                if (fd == -1) {
+                    printf("Erro ao Abrir FIFO \n");
+                    fflush(stdout);
+                } else {
+                    j.PID = getpid() + 10000;
+                    j.ascii = (int) tecla;
+                    write(fd, &j, sizeof (j));
+                    close(fd);
+                }
+
+            }
+
+        } else {
+            if (FD_ISSET(fd, &rfds)) {
+                i = read(fd, &b, sizeof (b));
+                if (i == sizeof (b)) {
+                    if(b.id == -5)
+                    {
+                        delwin(mainwin);
+                        endwin();
+                        refresh();
+                        
+                        printf("O seu jogador foi kicado!\n");
+                        sleep(2);
+                        return;
+                    }
+                    
+                }
+                Imprime(ob);
+
+            }
+
         }
 
+    } while (Sair == 0);
 
-    }
+    delwin(mainwin);
+    endwin();
+    refresh();
     return (EXIT_SUCCESS);
 }
 
@@ -213,19 +287,65 @@ Objecto* RecebeObjetosIniciais() {
     return arrayb;
 }
 
-void MostraLabirinto(Objecto *ob) {
-    Objecto *it;
-    it = ob;
-
-    while (it != NULL) {
-        gotoxy(it->x, it->y);
-        printf("%d", it->tipo);
-        it = it->p;
-    }
-}
-
 ////GOTOXY
 
 void gotoxy(int x, int y) {
     printf("%c[%d;%df", 0x1B, y, x);
+}
+
+///RECEBE OS DADOS
+
+void *AtualizaEcra(void *dados) {
+    PassaThread *x = (PassaThread*) dados;
+    Objecto *ob = x->ob;
+    int fd, i;
+    char str[50];
+    Objecto b;
+    Objecto *it;
+
+    WINDOW * mainwin;
+    if ((mainwin = initscr()) == NULL) {
+        fprintf(stderr, "Error initialising ncurses.\n");
+        exit(EXIT_FAILURE);
+    }
+
+
+    sprintf(str, "../JJJ%d", getpid());
+
+    fd = open(str, O_RDWR);
+    while (x->Sair == 0) {
+        i = read(fd, &b, sizeof (b));
+        if (i == sizeof (b)) {
+            it = ob;
+            while (it != NULL) {
+                if (it->id == b.id) {
+                    it->x = b.x;
+                    it->y = b.y;
+                    break;
+                }
+                it = it->p;
+            }
+            Imprime(ob);
+        }
+    }
+    delwin(mainwin);
+    endwin();
+}
+
+///IMPRIME NO ECRA OS OBJECTOS
+
+void Imprime(Objecto *ob) {
+    clear;
+    Objecto *it;
+    it = ob;
+    clear();
+    while (it == NULL) {
+        if (it->tipo == 0) {
+            mvaddstr(it->y, it->x, "0");
+            
+        }
+        it = it->p;
+    }
+    refresh();
+
 }

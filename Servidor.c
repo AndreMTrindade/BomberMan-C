@@ -27,6 +27,12 @@ typedef struct {
     int* Sair;
 } PassarThreadJogo;
 
+typedef struct Jogada {
+    char ascii;
+    int PID;
+} Jogada;
+
+
 static int id = 0;
 
 Cliente* Shell(Cliente *clientes);
@@ -36,6 +42,7 @@ int ProcessaComando(Palavra *p);
 int Size(Palavra *p);
 char* UpString(char *s);
 Cliente* AdicionaCliente(Palavra *p, Cliente *c);
+void KickPlayer(Palavra *p, Cliente *c);
 void Users(Cliente *c);
 void *RecebeJogadores(void *dados);
 void *EnviaDadosJagador(void *dados);
@@ -47,6 +54,11 @@ Objecto* LeLabirinto();
 void gotoxy(int x, int y);
 void MostraLabirinto(Objecto *ob);
 void *CorpoJogo(void *dados);
+void TrataAccao(Objecto *b, Jogada j, Cliente *c);
+Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob);
+void CriarPerso(Cliente *clientes, Objecto *bjectos);
+void ColocaJogador(Objecto *novo, Objecto *objectos);
+void EnviaNovopTodos(Objecto novo, Cliente *c);
 
 int main(int argc, char** argv) {
     Cliente *clientes = LeClientes();
@@ -99,6 +111,7 @@ Cliente* Shell(Cliente *clientes) {
                 Users(clientes);
                 break;
             case 2:
+                KickPlayer(p, clientes);
                 break;
             case 3:
                 break;
@@ -312,7 +325,7 @@ void Users(Cliente *c) {
     }
 }
 
-/// LE OS CLIENTES DO FICHEIRO DE TEXTO
+/// LE OS CLIENTES DO FICHEIRO DE TEXTOl
 
 Cliente* LeClientes() {
     FILE *fd = fopen("clientes.txt", "rt");
@@ -384,6 +397,7 @@ void *RecebeJogadores(void *dados) {
     pthread_t envia;
     const char* s = getenv("NMAXPLAY");
     int nPlayers = 0;
+
     if (s == NULL) {
         srand((unsigned) time(NULL));
         nPlayers = 1 + (rand() % 20);
@@ -405,10 +419,12 @@ void *RecebeJogadores(void *dados) {
 
     mkfifo(FIFOLOGIN, 0600);
 
-    fd = open(FIFOLOGIN, O_RDONLY);
+    fd = open(FIFOLOGIN, O_RDWR);
 
     while (*Sair == 0) {
 
+        printf("ENTROU");
+        fflush(stdout);
         i = read(fd, &c, sizeof (c));
 
         if (i == sizeof (c)) {
@@ -457,6 +473,7 @@ void *EnviaDadosJagador(void *dados) {
     itb = x->objectos;
     it = x->clientes;
     it = it->p;
+    CriarPerso(x->clientes, x->objectos);
 
     while (it != NULL) {
         if (it->Ajogar == 1) {
@@ -603,75 +620,289 @@ void gotoxy(int x, int y) {
     printf("%c[%d;%df", 0x1B, y, x);
 }
 
+///CORPO DO JOGO
+/// TRATA DE RECEBER E ENVIAR AAS JOGADAS
+
 void *CorpoJogo(void *dados) {
     PassarThreadJogo *x = (PassarThreadJogo*) dados;
     Jogada j;
     int i, fd;
 
-    mkfifo(FIFOJOGO, 0600);
-    fd = open(FIFOJOGO, O_RDONLY);
+    mkfifo("../MMM", 0600);
+    fd = open("../MMM", O_RDWR);
 
     if (fd == -1) {
         printf("Erro ao abrir FIFOJOGO\n");
+        fflush(stdout);
         pthread_exit(0);
     }
 
     while (*(x->Sair) == 0) {
-        i = read(fd, &j, sizeof (j));
-        if (i == sizeof (j)) {
-            (
 
-                    TrataAccao(x->objectos, j);
+        i = read(fd, &j, sizeof (j));
+        printf("LEU JOGADA: %c\n", j.ascii);
+        fflush(stdout);
+        if (i == sizeof (j)) {
+            TrataAccao(x->objectos, j, x->clientes);
         }
     }
 }
 
-void TrataAccao(Objecto *b, Jogada j) {
-    if (VerificaJogador(j.PID) == -1)
-        return;
+////TRATA AS ACÇOES!!
 
-        Objecto * it = b;
-        Objecto novo;
-            char tecla;
-            int fd;
-            char str[50];
+void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 
-        while (it != NULL) {
-            if (it->tipo == j.PID * 10000) {
-                tecla = j.ascii;
-                sprintf(str, "../JJJ%d", j.PID);
-                fd = open(str, O_WRONLY);
-                
-                if (fd == -1) {
-                    printf("Erro ao Abrir FIFO CLIENTE %d", j.PID);
-                    fflush(stdout);
-                    break;
+    Objecto * it = b;
+    Objecto novo;
+    char tecla;
+    int fd;
+    char str[50];
+
+    while (it != NULL) {
+        if (it->tipo == j.PID + 10000) {
+            tecla = j.ascii;
+            if (toupper(tecla) == 'W' || tecla == 30) {
+                novo = VerificaMovimento(1, b, it);
+                if (novo.y != it->y) {
+                    EnviaNovopTodos(novo, c);
+                }
+
+            } else {
+                if (toupper(tecla) == 'S' || tecla == 31) {
+                    novo = VerificaMovimento(2, b, it);
+                    if (novo.y != it->y) {
+                        EnviaNovopTodos(novo, c);
+                    }
+
                 } else {
-                    if (toupper(j) == 'W' || tecla == 30) {
-                        if ((novo = VerificaMovimento(1, b, it->id)) == 1) {
-                            write(fd,novo,sizeof(novo));
-                            close(fd);
+                    if (toupper(tecla) == 'D' || tecla == 16) {
+                        novo = VerificaMovimento(3, b, it);
+                        if (novo.x != it->x) {
+                            EnviaNovopTodos(novo, c);
                         }
+
                     } else {
-                        if (toupper(tecla) == 'S' || tecla == 31) {
-                            envia = 1;
+                        if (toupper(tecla) == 'A' || tecla == 17) {
+                            novo = VerificaMovimento(4, b, it);
+                            if (novo.y != it->y) {
+                                EnviaNovopTodos(novo, c);
+                            }
+
                         } else {
-                            if (toupper(tecla) == 'D' || tecla == 16) {
-                                envia = 1;
-                            } else {
-                                if (toupper(tecla) == 'A' || tecla == 17) {
-                                    envia = 1;
-                                } else {
-                                    if (toupper(tecla) == 'A' || tecla == 17) {
-                                        envia = 1;
-                                    }
-                                }
+                            if (toupper(tecla) == 'A' || tecla == 32) {
+
                             }
                         }
                     }
-                    break;
                 }
             }
-            it = it->p;
+            break;
         }
+        it = it->p;
+    }
+}
+
+//VERIFICA SE A ACÇAO PERTENDIDA É POSSIVEL
+
+Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
+    if (tecla == 1) {
+        int y = ob->y - 1;
+
+        if (y <= 0) {
+            return *ob;
+        } else {
+            Objecto *it;
+
+            while (it != NULL) {
+                if (it->y == y) {
+                    return *ob;
+                }
+                it = it->p;
+            }
+            ob->y = y;
+            return *ob;
+        }
+
+    } else {
+        if (tecla == 2) {
+            int y = ob->y + 1;
+
+            if (y >= 20) {
+                return *ob;
+            } else {
+                Objecto *it;
+
+                while (it != NULL) {
+                    if (it->y == y) {
+                        return *ob;
+                    }
+                    it = it->p;
+                }
+                ob->y = y;
+                return *ob;
+            }
+        } else {
+            if (tecla == 3) {
+                int x = ob->x + 1;
+
+                if (x >= 30) {
+                    return *ob;
+                } else {
+                    Objecto *it;
+
+                    while (it != NULL) {
+                        if (it->x == x) {
+                            return *ob;
+                        }
+                        it = it->p;
+                    }
+                    ob->x = x;
+                    return *ob;
+                }
+            } else {
+                if (tecla == 4) {
+                    int x = ob->x - 1;
+
+                    if (x <= 0) {
+                        return *ob;
+                    } else {
+                        Objecto *it;
+
+                        while (it != NULL) {
+                            if (it->x == x) {
+                                return *ob;
+                            }
+                            it = it->p;
+                        }
+                        ob->x = x;
+                        return *ob;
+
+                    }
+                }
+            }
+        }
+    }
+
+    return *ob;
+}
+
+//METE AS PERSONAGENS NO TABULEIRO
+
+void CriarPerso(Cliente *clientes, Objecto *bjectos) {
+    Cliente *it;
+    Objecto *itb;
+    Objecto *ult;
+    Objecto *novo;
+
+    it = clientes;
+    itb = bjectos;
+
+    while (itb->p != NULL) {
+        itb = itb->p;
+    }
+    ult = itb;
+
+    while (it != NULL) {
+        if (it->Ajogar == 1) {
+            novo = (Objecto*) malloc(sizeof (Objecto));
+            novo->id = id++;
+            novo->ativo = 1;
+            novo->tipo = 1;
+            novo->tipo = it->PID + 10000;
+            ColocaJogador(novo, bjectos);
+            ult->p = novo;
+            novo->p = NULL;
+            ult = novo;
+        }
+        it = it->p;
+    }
+
+}
+
+//COLOCA O JOGADOR NO MAPA
+
+void ColocaJogador(Objecto *novo, Objecto *objectos) {
+
+    Objecto *it;
+    int x = 2, y = 2, sair = 0;
+
+
+    do {
+        it = objectos;
+        while (it != NULL) {
+            if (it->x == x && it->y == y) {
+                sair = 0;
+                break;
+            }
+            novo->x = x;
+            novo->y = y;
+            it = it->p;
+            sair = 1;
+        }
+        x = x + 2;
+    } while (sair == 0);
+
+}
+
+///KICKA O JOGADOR DO JOGO
+
+void KickPlayer(Palavra *p, Cliente *c) {
+    Cliente *it;
+
+    it = c;
+    char*nome;
+    Palavra *pa = (Palavra*)p->p;
+    nome = pa->comando;
+    while (it != NULL) {
+        if (strcmp(it->nome,nome) == 0) {
+            it->Ajogar = -1;
+            printf("Utilizador %s fora do Jogo!\n", it->nome);
+            return;
+        }
+        it = it->p;
+    }
+}
+
+void EnviaNovopTodos(Objecto novo, Cliente *c) {
+    char str[50];
+    Cliente *it;
+    Objecto kick;
+    
+    int fd;
+    it = c;
+    
+    while (it != NULL) {
+        if (it->Ajogar == 1) {
+            sprintf(str, "JJJ%d", it->PID);
+            fd = open(str, O_WRONLY);
+
+            if (fd == -1) {
+                printf("Erro ao Abrir FIFO CLIENTE");
+                fflush(stdout);
+                break;
+            } else {
+                write(fd, &novo, sizeof (novo));
+                close(fd);
+            }
+            it = it->p;
+        } else {
+            if (it->Ajogar == -1) {
+                sprintf(str, "JJJ%d", it->PID);
+                fd = open(str, O_WRONLY);
+                
+                if (fd == -1) {
+                    printf("Erro ao Abrir FIFO CLIENTE");
+                    fflush(stdout);
+                    break;
+                } else {
+                    
+                    kick.id = -5;
+                    write(fd, &kick, sizeof (kick));
+                    close(fd);
+                }
+                it = it->p;
+            }
+        }
+
+    }
 }
