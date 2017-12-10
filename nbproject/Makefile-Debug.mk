@@ -66,7 +66,7 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/bomberman: ${OBJECTFILES}
 ${OBJECTDIR}/Cliente.o: Cliente.c
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
-	$(COMPILE.c) -g -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Cliente.o Cliente.c
+	$(COMPILE.c) -g - lpthread -lncurses -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Cliente.o Cliente.c
 
 ${OBJECTDIR}/Servidor.o: Servidor.c
 	${MKDIR} -p ${OBJECTDIR}
