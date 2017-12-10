@@ -392,6 +392,7 @@ void *RecebeJogadores(void *dados) {
     pthread_t envia;
     const char* s = getenv("NMAXPLAY");
     int nPlayers = 0;
+
     if (s == NULL) {
         srand((unsigned) time(NULL));
         nPlayers = 1 + (rand() % 20);
@@ -413,9 +414,10 @@ void *RecebeJogadores(void *dados) {
 
     mkfifo(FIFOLOGIN, 0600);
 
-    fd = open(FIFOLOGIN, O_RDONLY);
+    fd = open(FIFOLOGIN, O_RDWR);
 
     while (*Sair == 0) {
+        
         printf("ENTROU");
         fflush(stdout);
         i = read(fd, &c, sizeof (c));
@@ -618,7 +620,7 @@ void *CorpoJogo(void *dados) {
     int i, fd;
 
     mkfifo("../MMM", 0600);
-    fd = open("../MMM", O_RDONLY);
+    fd = open("../MMM", O_RDWR);
 
     if (fd == -1) {
         printf("Erro ao abrir FIFOJOGO\n");
@@ -636,6 +638,7 @@ void *CorpoJogo(void *dados) {
 }
 
 ////TRATA AS ACÇOES!!
+
 void TrataAccao(Objecto *b, Jogada j) {
 
     Objecto * it = b;
@@ -702,6 +705,7 @@ void TrataAccao(Objecto *b, Jogada j) {
 }
 
 //VERIFICA SE A ACÇAO PERTENDIDA É POSSIVEL
+
 Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
     if (tecla == 1) {
         int y = ob->y - 1;
