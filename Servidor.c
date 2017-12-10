@@ -27,6 +27,12 @@ typedef struct {
     int* Sair;
 } PassarThreadJogo;
 
+typedef struct Jogada {
+    char ascii;
+    int PID;
+} Jogada;
+
+
 static int id = 0;
 
 Cliente* Shell(Cliente *clientes);
@@ -47,6 +53,8 @@ Objecto* LeLabirinto();
 void gotoxy(int x, int y);
 void MostraLabirinto(Objecto *ob);
 void *CorpoJogo(void *dados);
+void TrataAccao(Objecto *b, Jogada j);
+Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob);
 
 int main(int argc, char** argv) {
     Cliente *clientes = LeClientes();
@@ -312,7 +320,7 @@ void Users(Cliente *c) {
     }
 }
 
-/// LE OS CLIENTES DO FICHEIRO DE TEXTO
+/// LE OS CLIENTES DO FICHEIRO DE TEXTOl
 
 Cliente* LeClientes() {
     FILE *fd = fopen("clientes.txt", "rt");
@@ -408,7 +416,8 @@ void *RecebeJogadores(void *dados) {
     fd = open(FIFOLOGIN, O_RDONLY);
 
     while (*Sair == 0) {
-
+        printf("ENTROU");
+        fflush(stdout);
         i = read(fd, &c, sizeof (c));
 
         if (i == sizeof (c)) {
@@ -608,8 +617,8 @@ void *CorpoJogo(void *dados) {
     Jogada j;
     int i, fd;
 
-    mkfifo(FIFOJOGO, 0600);
-    fd = open(FIFOJOGO, O_RDONLY);
+    mkfifo("../MMM", 0600);
+    fd = open("../MMM", O_RDONLY);
 
     if (fd == -1) {
         printf("Erro ao abrir FIFOJOGO\n");
@@ -618,60 +627,159 @@ void *CorpoJogo(void *dados) {
 
     while (*(x->Sair) == 0) {
         i = read(fd, &j, sizeof (j));
+        printf("LEU JOGADA: %c\n", j.ascii);
+        fflush(stdout);
         if (i == sizeof (j)) {
-            (
-
-                    TrataAccao(x->objectos, j);
+            TrataAccao(x->objectos, j);
         }
     }
 }
 
+////TRATA AS ACÇOES!!
 void TrataAccao(Objecto *b, Jogada j) {
-    if (VerificaJogador(j.PID) == -1)
-        return;
 
-        Objecto * it = b;
-        Objecto novo;
-            char tecla;
-            int fd;
-            char str[50];
+    Objecto * it = b;
+    Objecto novo;
+    char tecla;
+    int fd;
+    char str[50];
 
-        while (it != NULL) {
-            if (it->tipo == j.PID * 10000) {
-                tecla = j.ascii;
-                sprintf(str, "../JJJ%d", j.PID);
-                fd = open(str, O_WRONLY);
-                
-                if (fd == -1) {
-                    printf("Erro ao Abrir FIFO CLIENTE %d", j.PID);
-                    fflush(stdout);
-                    break;
+    while (it != NULL) {
+        if (it->tipo == j.PID * 10000) {
+            tecla = j.ascii;
+            sprintf(str, "../JJJ%d", j.PID);
+            fd = open(str, O_WRONLY);
+
+            if (fd == -1) {
+                printf("Erro ao Abrir FIFO CLIENTE %d", j.PID);
+                fflush(stdout);
+                break;
+            } else {
+                if (toupper(tecla) == 'W' || tecla == 30) {
+                    novo = VerificaMovimento(1, b, it);
+                    if (novo.y != it->y) {
+                        write(fd, &novo, sizeof (novo));
+                        close(fd);
+                    }
+
                 } else {
-                    if (toupper(j) == 'W' || tecla == 30) {
-                        if ((novo = VerificaMovimento(1, b, it->id)) == 1) {
-                            write(fd,novo,sizeof(novo));
+                    if (toupper(tecla) == 'S' || tecla == 31) {
+                        novo = VerificaMovimento(2, b, it);
+                        if (novo.y != it->y) {
+                            write(fd, &novo, sizeof (novo));
                             close(fd);
                         }
+
                     } else {
-                        if (toupper(tecla) == 'S' || tecla == 31) {
-                            envia = 1;
+                        if (toupper(tecla) == 'D' || tecla == 16) {
+                            novo = VerificaMovimento(3, b, it);
+                            if (novo.x != it->x) {
+                                write(fd, &novo, sizeof (novo));
+                                close(fd);
+                            }
+
                         } else {
-                            if (toupper(tecla) == 'D' || tecla == 16) {
-                                envia = 1;
+                            if (toupper(tecla) == 'A' || tecla == 17) {
+                                novo = VerificaMovimento(4, b, it);
+                                if (novo.y != it->y) {
+                                    write(fd, &novo, sizeof (novo));
+                                    close(fd);
+                                }
+
                             } else {
-                                if (toupper(tecla) == 'A' || tecla == 17) {
-                                    envia = 1;
-                                } else {
-                                    if (toupper(tecla) == 'A' || tecla == 17) {
-                                        envia = 1;
-                                    }
+                                if (toupper(tecla) == 'A' || tecla == 32) {
+
                                 }
                             }
                         }
                     }
-                    break;
+                }
+                break;
+            }
+        }
+        it = it->p;
+    }
+}
+
+//VERIFICA SE A ACÇAO PERTENDIDA É POSSIVEL
+Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
+    if (tecla == 1) {
+        int y = ob->y - 1;
+
+        if (y <= 0) {
+            return *ob;
+        } else {
+            Objecto *it;
+
+            while (it != NULL) {
+                if (it->y == y) {
+                    return *ob;
+                }
+                it = it->p;
+            }
+            ob->y = y;
+            return *ob;
+        }
+
+    } else {
+        if (tecla == 2) {
+            int y = ob->y + 1;
+
+            if (y >= 20) {
+                return *ob;
+            } else {
+                Objecto *it;
+
+                while (it != NULL) {
+                    if (it->y == y) {
+                        return *ob;
+                    }
+                    it = it->p;
+                }
+                ob->y = y;
+                return *ob;
+            }
+        } else {
+            if (tecla == 3) {
+                int x = ob->x + 1;
+
+                if (x >= 30) {
+                    return *ob;
+                } else {
+                    Objecto *it;
+
+                    while (it != NULL) {
+                        if (it->x == x) {
+                            return *ob;
+                        }
+                        it = it->p;
+                    }
+                    ob->x = x;
+                    return *ob;
+                }
+            } else {
+                if (tecla == 4) {
+                    int x = ob->x - 1;
+
+                    if (x <= 0) {
+                        return *ob;
+                    } else {
+                        Objecto *it;
+
+                        while (it != NULL) {
+                            if (it->x == x) {
+                                return *ob;
+                            }
+                            it = it->p;
+                        }
+                        ob->x = x;
+                        return *ob;
+
+                    }
                 }
             }
-            it = it->p;
         }
+    }
+
+    return *ob;
 }

@@ -15,6 +15,11 @@
 
 #define clear printf("\033[H\033[J")
 
+typedef struct Jogada{
+    char ascii;
+    int PID; 
+}Jogada;
+
 Cliente* Inicio(Cliente *c);
 void LimpaStdin(void);
 int EnviaDadosLogin(Cliente *c);
@@ -31,7 +36,8 @@ int main(int argc, char** argv) {
     int envia = 0;
     char tecla;
     Objecto *ob;
-
+    Jogada j;
+    
     sprintf(str, "../JJJ%d", getpid());
     mkfifo(str, 0600);
     do {
@@ -43,10 +49,10 @@ int main(int argc, char** argv) {
     //MostraLabirinto(ob);
     //pthread_create(&recebe, NULL, &RecebeObjetos, (void*) &Sair);
 
-
+    initscr();
     while (1) {
         envia = 0;
-        tecla = getchar();
+        tecla = getch();
         if (toupper(tecla) == 'W' || tecla == 30) {
             envia = 1;
         } else {
@@ -69,7 +75,19 @@ int main(int argc, char** argv) {
         
         if(envia == 1)
         {
-            ///ENVIA PARA Servidor
+            fd = open("../MMM",O_WRONLY);
+            if(fd == -1)
+            {
+                printf("Erro ao Abrir FIFO \n");
+                fflush(stdout);
+            }
+            else
+            {
+                j.PID = getpid();
+                j.ascii = (int)tecla;
+                write(fd,&j,sizeof(j));
+                close(fd);
+            }
             
         }
 
