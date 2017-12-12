@@ -59,6 +59,7 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob);
 void CriarPerso(Cliente *clientes, Objecto *bjectos);
 void ColocaJogador(Objecto *novo, Objecto *objectos);
 void EnviaNovopTodos(Objecto novo, Cliente *c);
+void Shutdown(Cliente *c);
 
 int main(int argc, char** argv) {
     Cliente *clientes = LeClientes();
@@ -116,6 +117,7 @@ Cliente* Shell(Cliente *clientes) {
             case 3:
                 break;
             case 4:
+                Shutdown(clientes);
                 break;
             case 5:
                 break;
@@ -545,7 +547,7 @@ Objecto* LeLabirinto() {
     char c;
     Objecto *ob = NULL;
     Objecto *ultimo = NULL;
-    int x, y = 0;
+    int x = 0, y = 0;
 
     while ((c = getc(fd)) != EOF) {
         if (c == '\n') {
@@ -568,7 +570,7 @@ Objecto* LeLabirinto() {
                     ultimo->p->id = ++id;
                     ultimo->p->x = x;
                     ultimo->p->y = y;
-                    ultimo->p->tipo = 1;
+                    ultimo->p->tipo = 0;
                     ultimo->p->p = NULL;
                     ultimo = ultimo->p;
                 }
@@ -808,7 +810,7 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
             novo->id = id++;
             novo->ativo = 1;
             novo->tipo = 1;
-            novo->tipo = it->PID + 10000;
+            novo->tipo = it->PID * -1;
             ColocaJogador(novo, bjectos);
             ult->p = novo;
             novo->p = NULL;
@@ -851,10 +853,10 @@ void KickPlayer(Palavra *p, Cliente *c) {
 
     it = c;
     char*nome;
-    Palavra *pa = (Palavra*)p->p;
+    Palavra *pa = (Palavra*) p->p;
     nome = pa->comando;
     while (it != NULL) {
-        if (strcmp(it->nome,nome) == 0) {
+        if (strcmp(it->nome, nome) == 0) {
             it->Ajogar = -1;
             printf("Utilizador %s fora do Jogo!\n", it->nome);
             return;
@@ -867,10 +869,10 @@ void EnviaNovopTodos(Objecto novo, Cliente *c) {
     char str[50];
     Cliente *it;
     Objecto kick;
-    
+
     int fd;
     it = c;
-    
+
     while (it != NULL) {
         if (it->Ajogar == 1) {
             sprintf(str, "JJJ%d", it->PID);
@@ -889,13 +891,13 @@ void EnviaNovopTodos(Objecto novo, Cliente *c) {
             if (it->Ajogar == -1) {
                 sprintf(str, "JJJ%d", it->PID);
                 fd = open(str, O_WRONLY);
-                
+
                 if (fd == -1) {
                     printf("Erro ao Abrir FIFO CLIENTE");
                     fflush(stdout);
                     break;
                 } else {
-                    
+
                     kick.id = -5;
                     write(fd, &kick, sizeof (kick));
                     close(fd);
@@ -904,5 +906,28 @@ void EnviaNovopTodos(Objecto novo, Cliente *c) {
             }
         }
 
+    }
+}
+
+////DESLIGA O SERVIDOR E ENVIA OBJE PARA TODOS OS CLIENTES
+void Shutdown(Cliente *c) {
+    Cliente *it;
+    Objecto b;
+    char str[50];
+    int fd;
+
+    b.id = -1;
+
+    it = c;
+
+    while (it != NULL) {
+        if (it->Ajogar == 1) {
+            sprintf(str,"../JJJ%d", it->PID);
+            fd = open(str, O_WRONLY);
+
+            write(fd, &b, sizeof (b));
+            close(fd);
+        }
+        it = it->p;
     }
 }

@@ -22,17 +22,14 @@ typedef struct {
     int *Sair;
 } PassaThread;
 
-
-
-
 Cliente* Inicio(Cliente *c);
 void LimpaStdin(void);
 int EnviaDadosLogin(Cliente *c);
 Objecto* RecebeObjetosIniciais();
 void MostraLabirinto(Objecto *ob);
 void gotoxy(int x, int y);
-void *AtualizaEcra(void *dados);
 void Imprime(Objecto *ob);
+void AlteraObjectos(Objecto b, Objecto *ob);
 
 int main(int argc, char** argv) {
     Cliente c;
@@ -49,8 +46,8 @@ int main(int argc, char** argv) {
     fd_set rfds;
     struct timeval t;
     int resultado;
-    
-     WINDOW * mainwin;
+
+    WINDOW * mainwin;
 
     sprintf(str, "../JJJ%d", getpid());
     mkfifo(str, 0600);
@@ -62,19 +59,27 @@ int main(int argc, char** argv) {
 
     ob = RecebeObjetosIniciais();
     
+    it = ob;
+    
+    while(it != NULL)
+    {
+        printf("RECEBEU: %d - %d\n",it->id,it->tipo);
+        it = it->p;
+    }
+    getchar();
+    
     if ((mainwin = initscr()) == NULL) {
         fprintf(stderr, "Error initialising ncurses.\n");
         exit(EXIT_FAILURE);
     }
 
-    sprintf(str, "../JJJ%d", getpid());
     fd = open(str, O_RDWR);
-    
-    noecho();              
-    keypad(mainwin, TRUE);  
+
+    noecho();
+    keypad(mainwin, TRUE);
     curs_set(0);
     Imprime(ob);
-    
+
     do {
         FD_ZERO(&rfds);
         FD_SET(0, &rfds); // atençao ao telcado
@@ -125,18 +130,20 @@ int main(int argc, char** argv) {
         } else {
             if (FD_ISSET(fd, &rfds)) {
                 i = read(fd, &b, sizeof (b));
+                mvaddstr(5, 5, "LEU UM");
+                refresh();
                 if (i == sizeof (b)) {
-                    if(b.id == -5)
-                    {
+                    if (b.id == -5) {
                         delwin(mainwin);
                         endwin();
                         refresh();
-                        
+
                         printf("O seu jogador foi kicado!\n");
                         sleep(2);
-                        return;
+                        exit(EXIT_FAILURE);
+                    } else {
+                        AlteraObjectos(b, ob);
                     }
-                    
                 }
                 Imprime(ob);
 
@@ -154,7 +161,6 @@ int main(int argc, char** argv) {
 
 ///FUNÇÃO ONDE OCORRE O LOGIN
 /// DO CLIENTE
-
 Cliente* Inicio(Cliente *c) {
     char Nome[50];
     char Pass[50];
@@ -180,7 +186,6 @@ Cliente* Inicio(Cliente *c) {
 }
 
 ////FUNÇÃO PARA APANHAR OS ESPAÇOS EM BRANCO
-
 void LimpaStdin(void) {
     int c;
     do {
@@ -190,7 +195,6 @@ void LimpaStdin(void) {
 
 ///// FUNÇÃO RESPONSAVEL POR ENVIAR OS DADOS
 ////  PARA O SERVIDOR 
-
 int EnviaDadosLogin(Cliente *c) {
     char str[10];
     int fdres;
@@ -233,7 +237,6 @@ int EnviaDadosLogin(Cliente *c) {
 }
 
 ///THREAD  QUE RECEBE OS OBJETOS DO SERVIDOR
-
 Objecto* RecebeObjetosIniciais() {
     int fd, i;
     char str[50];
@@ -288,64 +291,66 @@ Objecto* RecebeObjetosIniciais() {
 }
 
 ////GOTOXY
-
 void gotoxy(int x, int y) {
     printf("%c[%d;%df", 0x1B, y, x);
 }
 
-///RECEBE OS DADOS
-
-void *AtualizaEcra(void *dados) {
-    PassaThread *x = (PassaThread*) dados;
-    Objecto *ob = x->ob;
-    int fd, i;
-    char str[50];
-    Objecto b;
-    Objecto *it;
-
-    WINDOW * mainwin;
-    if ((mainwin = initscr()) == NULL) {
-        fprintf(stderr, "Error initialising ncurses.\n");
-        exit(EXIT_FAILURE);
-    }
-
-
-    sprintf(str, "../JJJ%d", getpid());
-
-    fd = open(str, O_RDWR);
-    while (x->Sair == 0) {
-        i = read(fd, &b, sizeof (b));
-        if (i == sizeof (b)) {
-            it = ob;
-            while (it != NULL) {
-                if (it->id == b.id) {
-                    it->x = b.x;
-                    it->y = b.y;
-                    break;
-                }
-                it = it->p;
-            }
-            Imprime(ob);
-        }
-    }
-    delwin(mainwin);
-    endwin();
-}
-
 ///IMPRIME NO ECRA OS OBJECTOS
-
 void Imprime(Objecto *ob) {
     clear;
     Objecto *it;
     it = ob;
+    int i = 0;
     clear();
-    while (it == NULL) {
+    while (it != NULL) {
         if (it->tipo == 0) {
-            mvaddstr(it->y, it->x, "0");
-            
+            if (i != 0) {
+                mvaddstr(it->y, it->x - 1, "0");
+            } else {
+                mvaddstr(it->y, it->x, "0");
+            }
+            refresh();
+        } else {
+            if (it->tipo < 10) {
+                mvaddstr(it->y, it->x, "1");
+                refresh();
+            }
+        }
+        i++;
+        it = it->p;
+    }
+
+}
+
+////ADICIONA OU ALTERA O OBJECTO RECEBIDO 
+void AlteraObjectos(Objecto b, Objecto *ob) {
+    Objecto *it = ob;
+    Objecto *novo;
+
+    while (it != NULL) {
+        if (b.id == it->id) {
+            ob->ativo = b.ativo;
+            ob->tipo = b.tipo;
+            ob->x = b.x;
+            ob->y = b.y;
+            return;
         }
         it = it->p;
     }
-    refresh();
 
+    it = ob;
+
+    while (it->p != NULL) {
+        it = it->p;
+    }
+
+    novo = (Objecto*) malloc(sizeof (Objecto));
+
+    novo->ativo = b.ativo;
+    novo->id = b.id;
+    novo->p = NULL;
+    novo->tipo = b.tipo;
+    novo->x = b.x;
+    novo->y = b.y;
+    it->p = novo;
 }
