@@ -23,8 +23,6 @@ typedef struct {
 } PassaThread;
 
 
-
-
 Cliente* Inicio(Cliente *c);
 void LimpaStdin(void);
 int EnviaDadosLogin(Cliente *c);
@@ -339,11 +337,10 @@ void Imprime(Objecto *ob) {
     Objecto *it;
     it = ob;
     clear();
-    while (it == NULL) {
-        if (it->tipo == 0) {
-            mvaddstr(it->y, it->x, "0");
-            
-        }
+    while (it != NULL) {
+       // if (it->tipo == 0) {
+            mvaddstr(it->y, it->x, "0");     
+       // }
         it = it->p;
     }
     refresh();
