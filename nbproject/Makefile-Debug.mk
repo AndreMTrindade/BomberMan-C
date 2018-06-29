@@ -35,7 +35,6 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
-	${OBJECTDIR}/Cliente.o \
 	${OBJECTDIR}/Servidor.o
 
 
@@ -57,16 +56,11 @@ LDLIBSOPTIONS=
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}
-	"${MAKE}"  -f nbproject/Makefile-${CND_CONF}.mk ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/bomberman
+	"${MAKE}"  -f nbproject/Makefile-${CND_CONF}.mk ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/bomberman-c
 
-${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/bomberman: ${OBJECTFILES}
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/bomberman-c: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
-	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/bomberman ${OBJECTFILES} ${LDLIBSOPTIONS}
-
-${OBJECTDIR}/Cliente.o: Cliente.c
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} "$@.d"
-	$(COMPILE.c) -g - lpthread -lncurses -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Cliente.o Cliente.c
+	gcc -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/bomberman-c ${OBJECTFILES} ${LDLIBSOPTIONS} -lpthread -lncurses
 
 ${OBJECTDIR}/Servidor.o: Servidor.c
 	${MKDIR} -p ${OBJECTDIR}

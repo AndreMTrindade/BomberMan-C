@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <time.h>
 
 #include "Estruturas.h"
 
@@ -31,6 +32,12 @@ typedef struct Jogada {
     char ascii;
     int PID;
 } Jogada;
+
+typedef struct PassaThreadBomba {
+    Cliente *clientes;
+    Objecto *objectos;
+    Objecto bomba;
+} PassaThreadBomba;
 
 
 static int id = 0;
@@ -59,6 +66,7 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob);
 void CriarPerso(Cliente *clientes, Objecto *bjectos);
 void ColocaJogador(Objecto *novo, Objecto *objectos);
 void EnviaNovopTodos(Objecto novo, Cliente *c);
+void *TrataBomba(void *dados);
 
 int main(int argc, char** argv) {
     Cliente *clientes = LeClientes();
@@ -497,6 +505,8 @@ void *EnviaDadosJagador(void *dados) {
 
         it = it->p;
     }
+    close(fd);
+
     pthread_create(&atualiza, NULL, &CorpoJogo, (void *) x);
     pthread_exit(0);
 }
@@ -545,7 +555,7 @@ Objecto* LeLabirinto() {
     char c;
     Objecto *ob = NULL;
     Objecto *ultimo = NULL;
-    int x, y = 0;
+    int x = 0, y = 0;
 
     while ((c = getc(fd)) != EOF) {
         if (c == '\n') {
@@ -626,6 +636,7 @@ void gotoxy(int x, int y) {
 void *CorpoJogo(void *dados) {
     PassarThreadJogo *x = (PassarThreadJogo*) dados;
     Jogada j;
+    Objecto novo;
     int i, fd;
 
     mkfifo("../MMM", 0600);
@@ -640,12 +651,11 @@ void *CorpoJogo(void *dados) {
     while (*(x->Sair) == 0) {
 
         i = read(fd, &j, sizeof (j));
-        printf("LEU JOGADA: %c\n", j.ascii);
-        fflush(stdout);
         if (i == sizeof (j)) {
             TrataAccao(x->objectos, j, x->clientes);
         }
     }
+    pthread_exit(0);
 }
 
 ////TRATA AS ACÇOES!!
@@ -659,38 +669,42 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
     char str[50];
 
     while (it != NULL) {
-        if (it->tipo == j.PID + 10000) {
+        if (it->tipo == j.PID) {
             tecla = j.ascii;
             if (toupper(tecla) == 'W' || tecla == 30) {
                 novo = VerificaMovimento(1, b, it);
-                if (novo.y != it->y) {
+                if (novo.y != (it->y - 1)) {
                     EnviaNovopTodos(novo, c);
                 }
 
             } else {
                 if (toupper(tecla) == 'S' || tecla == 31) {
                     novo = VerificaMovimento(2, b, it);
-                    if (novo.y != it->y) {
+                    if (novo.y != (it->y + 1)) {
                         EnviaNovopTodos(novo, c);
                     }
 
                 } else {
                     if (toupper(tecla) == 'D' || tecla == 16) {
                         novo = VerificaMovimento(3, b, it);
-                        if (novo.x != it->x) {
+                        if (novo.x != (it->x + 1)) {
                             EnviaNovopTodos(novo, c);
                         }
 
                     } else {
                         if (toupper(tecla) == 'A' || tecla == 17) {
                             novo = VerificaMovimento(4, b, it);
-                            if (novo.y != it->y) {
+                            if (novo.x != (it->x - 1)) {
                                 EnviaNovopTodos(novo, c);
                             }
-
                         } else {
-                            if (toupper(tecla) == 'A' || tecla == 32) {
-
+                            if (tecla == 32) {
+                                id++;
+                                novo.id = id;
+                                novo.tipo = 3;
+                                novo.x = it->x;
+                                novo.y = it->y;
+                                EnviaNovopTodos(novo, c);
                             }
                         }
                     }
@@ -705,16 +719,17 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 //VERIFICA SE A ACÇAO PERTENDIDA É POSSIVEL
 
 Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
+    Objecto *it = lob;
+    int conta = 0;
+
     if (tecla == 1) {
         int y = ob->y - 1;
 
         if (y <= 0) {
             return *ob;
         } else {
-            Objecto *it;
-
             while (it != NULL) {
-                if (it->y == y) {
+                if (ob->id != it->id && it->y == y && it->x == ob->x && it->tipo != 3) {
                     return *ob;
                 }
                 it = it->p;
@@ -730,10 +745,8 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
             if (y >= 20) {
                 return *ob;
             } else {
-                Objecto *it;
-
                 while (it != NULL) {
-                    if (it->y == y) {
+                    if (ob->id != it->id && it->y == y && it->x == ob->x && it->tipo != 3) {
                         return *ob;
                     }
                     it = it->p;
@@ -748,10 +761,9 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
                 if (x >= 30) {
                     return *ob;
                 } else {
-                    Objecto *it;
 
                     while (it != NULL) {
-                        if (it->x == x) {
+                        if (ob->id != it->id && it->y == ob->y && it->x == x && it->tipo != 3) {
                             return *ob;
                         }
                         it = it->p;
@@ -766,10 +778,8 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
                     if (x <= 0) {
                         return *ob;
                     } else {
-                        Objecto *it;
-
                         while (it != NULL) {
-                            if (it->x == x) {
+                            if (ob->id != it->id && it->y == ob->y && it->x == x && it->tipo != 3) {
                                 return *ob;
                             }
                             it = it->p;
@@ -805,9 +815,9 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
     while (it != NULL) {
         if (it->Ajogar == 1) {
             novo = (Objecto*) malloc(sizeof (Objecto));
-            novo->id = id++;
+            id++;
+            novo->id = id;
             novo->ativo = 1;
-            novo->tipo = 1;
             novo->tipo = it->PID + 10000;
             ColocaJogador(novo, bjectos);
             ult->p = novo;
@@ -851,10 +861,10 @@ void KickPlayer(Palavra *p, Cliente *c) {
 
     it = c;
     char*nome;
-    Palavra *pa = (Palavra*)p->p;
+    Palavra *pa = (Palavra*) p->p;
     nome = pa->comando;
     while (it != NULL) {
-        if (strcmp(it->nome,nome) == 0) {
+        if (strcmp(it->nome, nome) == 0) {
             it->Ajogar = -1;
             printf("Utilizador %s fora do Jogo!\n", it->nome);
             return;
@@ -867,42 +877,63 @@ void EnviaNovopTodos(Objecto novo, Cliente *c) {
     char str[50];
     Cliente *it;
     Objecto kick;
-    
+
     int fd;
     it = c;
-    
+
     while (it != NULL) {
         if (it->Ajogar == 1) {
-            sprintf(str, "JJJ%d", it->PID);
+            sprintf(str, "../JJJ%d", it->PID);
             fd = open(str, O_WRONLY);
 
             if (fd == -1) {
-                printf("Erro ao Abrir FIFO CLIENTE");
+                printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
                 fflush(stdout);
-                break;
+                //   break;
             } else {
+                printf("ENVIA --> ID: %d TIPO: %d  X: %d Y: %d\n", novo.id, novo.tipo, novo.x, novo.y);
+                fflush(stdout);
                 write(fd, &novo, sizeof (novo));
                 close(fd);
             }
-            it = it->p;
         } else {
             if (it->Ajogar == -1) {
-                sprintf(str, "JJJ%d", it->PID);
+                sprintf(str, "../JJJ%d", it->PID);
                 fd = open(str, O_WRONLY);
-                
+
                 if (fd == -1) {
-                    printf("Erro ao Abrir FIFO CLIENTE");
+                    printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
                     fflush(stdout);
-                    break;
+                    //   break;
                 } else {
-                    
+
                     kick.id = -5;
+
                     write(fd, &kick, sizeof (kick));
                     close(fd);
                 }
-                it = it->p;
+
             }
         }
+        it = it->p;
 
     }
+}
+
+void *TrataBomba(void *dados) {
+    PassaThreadBomba *x = (PassaThreadBomba*)dados;
+    int periodo=0;
+    
+    while(periodo != 3)
+    {
+        x->bomba.tipo *= 30;
+        EnviaNovopTodos(x->bomba, x->clientes);  
+        sleep(1);
+        periodo++;
+    }
+    
+     x->bomba.ativo = 0;
+     EnviaNovopTodos(x->bomba, x->clientes);  
+     
+    pthread_exit(0);
 }

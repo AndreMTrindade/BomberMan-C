@@ -9,19 +9,19 @@ CND_DISTDIR=dist
 # Debug configuration
 CND_PLATFORM_Debug=GNU-Linux
 CND_ARTIFACT_DIR_Debug=dist/Debug/GNU-Linux
-CND_ARTIFACT_NAME_Debug=bomberman
-CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux/bomberman
+CND_ARTIFACT_NAME_Debug=bomberman-c
+CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux/bomberman-c
 CND_PACKAGE_DIR_Debug=dist/Debug/GNU-Linux/package
-CND_PACKAGE_NAME_Debug=bomberman.tar
-CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux/package/bomberman.tar
+CND_PACKAGE_NAME_Debug=bomberman-c.tar
+CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux/package/bomberman-c.tar
 # Release configuration
 CND_PLATFORM_Release=GNU-Linux
 CND_ARTIFACT_DIR_Release=dist/Release/GNU-Linux
-CND_ARTIFACT_NAME_Release=bomberman
-CND_ARTIFACT_PATH_Release=dist/Release/GNU-Linux/bomberman
+CND_ARTIFACT_NAME_Release=bomberman-c
+CND_ARTIFACT_PATH_Release=dist/Release/GNU-Linux/bomberman-c
 CND_PACKAGE_DIR_Release=dist/Release/GNU-Linux/package
-CND_PACKAGE_NAME_Release=bomberman.tar
-CND_PACKAGE_PATH_Release=dist/Release/GNU-Linux/package/bomberman.tar
+CND_PACKAGE_NAME_Release=bomberman-c.tar
+CND_PACKAGE_PATH_Release=dist/Release/GNU-Linux/package/bomberman-c.tar
 #
 # include compiler specific variables
 #

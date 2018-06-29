@@ -29,29 +29,21 @@ int EnviaDadosLogin(Cliente *c);
 Objecto* RecebeObjetosIniciais();
 void MostraLabirinto(Objecto *ob);
 void gotoxy(int x, int y);
-void *AtualizaEcra(void *dados);
+void* AtualizaEcra(void *dados);
 void Imprime(Objecto *ob);
 
 int main(int argc, char** argv) {
     Cliente c;
     char str[50];
-    int fd;
+    int fd, fde;
     int Sair = 0;
-    int envia = 0, i;
     char tecla;
     Objecto *ob;
     Jogada j;
-    Objecto b;
-    Objecto *it;
+    PassaThread *passadadosThread = (PassaThread*) malloc(sizeof (PassaThread));
+    pthread_t envia;
 
-    fd_set rfds;
-    struct timeval t;
-    int resultado;
-    
-     WINDOW * mainwin;
-
-    sprintf(str, "../JJJ%d", getpid());
-    mkfifo(str, 0600);
+    WINDOW * mainwin;
 
     do {
         clear;
@@ -59,87 +51,34 @@ int main(int argc, char** argv) {
     } while (EnviaDadosLogin(&c) == -1);
 
     ob = RecebeObjetosIniciais();
-    
+
+    passadadosThread->Sair = &Sair;
+    passadadosThread->ob = ob;
+
     if ((mainwin = initscr()) == NULL) {
         fprintf(stderr, "Error initialising ncurses.\n");
         exit(EXIT_FAILURE);
     }
 
-    sprintf(str, "../JJJ%d", getpid());
-    fd = open(str, O_RDWR);
-    
-    noecho();              
-    keypad(mainwin, TRUE);  
+    noecho();
+    keypad(mainwin, TRUE);
     curs_set(0);
+    start_color();
     Imprime(ob);
-    
+
+    pthread_create(&envia, NULL, &AtualizaEcra, (void *) passadadosThread);
+
     do {
-        FD_ZERO(&rfds);
-        FD_SET(0, &rfds); // atençao ao telcado
-        FD_SET(fd, &rfds);
-        t.tv_sec = 3;
-        t.tv_usec = 500000;
-
-        resultado = select(fd + 1, &rfds, NULL, NULL, &t); // espera
-
-        if (FD_ISSET(0, &rfds)) // Há dados, No teclado
-        {
-            envia = 0;
-            scanf("%c", &tecla);
-            if (toupper(tecla) == 'W' || tecla == 30) {
-                envia = 1;
-            } else {
-                if (toupper(tecla) == 'S' || tecla == 31) {
-                    envia = 1;
-                } else {
-                    if (toupper(tecla) == 'D' || tecla == 16) {
-                        envia = 1;
-                    } else {
-                        if (toupper(tecla) == 'A' || tecla == 17) {
-                            envia = 1;
-                        } else {
-                            if (toupper(tecla) == 'A' || tecla == 17) {
-                                envia = 1;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (envia == 1) {
-                fd = open("../MMM", O_WRONLY);
-                if (fd == -1) {
-                    printf("Erro ao Abrir FIFO \n");
-                    fflush(stdout);
-                } else {
-                    j.PID = getpid() + 10000;
-                    j.ascii = (int) tecla;
-                    write(fd, &j, sizeof (j));
-                    close(fd);
-                }
-
-            }
-
+        scanf("%c", &tecla);
+        fde = open("../MMM", O_WRONLY);
+        if (fde == -1) {
+            printf("Erro ao Abrir FIFO \n");
+            fflush(stdout);
         } else {
-            if (FD_ISSET(fd, &rfds)) {
-                i = read(fd, &b, sizeof (b));
-                if (i == sizeof (b)) {
-                    if(b.id == -5)
-                    {
-                        delwin(mainwin);
-                        endwin();
-                        refresh();
-                        
-                        printf("O seu jogador foi kicado!\n");
-                        sleep(2);
-                        return;
-                    }
-                    
-                }
-                Imprime(ob);
-
-            }
-
+            j.PID = getpid() + 10000;
+            j.ascii = (int) tecla;
+            write(fde, &j, sizeof (j));
+            close(fde);
         }
 
     } while (Sair == 0);
@@ -196,12 +135,11 @@ int EnviaDadosLogin(Cliente *c) {
     int fd = open(FIFOLOGIN, O_WRONLY);
 
     sprintf(str, "../JJJ%d", c->PID);
-
+    mkfifo(str, 0600);
     write(fd, c, sizeof (Cliente));
     close(fd);
     printf("Esperando Resposta do Servidor...\n");
     fflush(stdout);
-
 
     fdres = open(str, O_RDONLY);
 
@@ -253,9 +191,7 @@ Objecto* RecebeObjetosIniciais() {
         printf("Recebeu: %d\n", b.id);
         fflush(stdout);
         if (i == sizeof (b)) {
-
             if (b.id == -1) {
-                break;
                 break;
             }
             if (arrayb == NULL) {
@@ -280,8 +216,6 @@ Objecto* RecebeObjetosIniciais() {
         }
     }
     close(fd);
-    printf("ACABOU");
-    return arrayb;
     return arrayb;
 }
 
@@ -293,54 +227,103 @@ void gotoxy(int x, int y) {
 
 ///RECEBE OS DADOS
 
-void *AtualizaEcra(void *dados) {
+void* AtualizaEcra(void *dados) {
     PassaThread *x = (PassaThread*) dados;
-    Objecto *ob = x->ob;
-    int fd, i;
     char str[50];
+    int fd, i, existe = 0;
+    Objecto *it, *temp, *ant = NULL;
     Objecto b;
-    Objecto *it;
-
-    WINDOW * mainwin;
-    if ((mainwin = initscr()) == NULL) {
-        fprintf(stderr, "Error initialising ncurses.\n");
-        exit(EXIT_FAILURE);
-    }
-
 
     sprintf(str, "../JJJ%d", getpid());
 
     fd = open(str, O_RDWR);
-    while (x->Sair == 0) {
+    if (fd == -1) {
+        printf("<ERRO> Erro ao abrir o Ficheiro FIFO\n");
+        fflush(stdout);
+        pthread_exit(0);
+    }
+
+    while (*(x->Sair) == 0) {
         i = read(fd, &b, sizeof (b));
         if (i == sizeof (b)) {
-            it = ob;
+
+            it = x->ob;
+            if (b.id == -5) {
+                endwin();
+                refresh();
+                printf("O seu jogador foi kicado!\n");
+                sleep(2);
+                pthread_exit(0);
+            }
+            existe = 0;
             while (it != NULL) {
                 if (it->id == b.id) {
-                    it->x = b.x;
-                    it->y = b.y;
+                    existe = 1;
+                    if (b.ativo == 0) {
+                        if (ant == NULL) {
+                            x->ob = x->ob->p;
+                        } else {
+                            ant->p = it->p;
+                            free(it);
+
+                        }
+                    } else {
+                        it->x = b.x;
+                        it->y = b.y;
+                    }
                     break;
                 }
+                ant = it;
                 it = it->p;
             }
-            Imprime(ob);
+            if (existe == 0) {
+                it = x->ob;
+                while (it->p != NULL) {
+                    it = it->p;
+                }
+                temp = (Objecto*) malloc(sizeof (Objecto));
+                it->p = temp;
+                temp->id = b.id;
+                temp->ativo = b.ativo;
+                temp->tipo = b.tipo;
+                temp->x = b.x;
+                temp->y = b.y;
+                temp->p = NULL;
+                printf("Adiciona Bomba\n");
+                fflush(stdout);
+            }
+            Imprime(x->ob);
         }
     }
-    delwin(mainwin);
-    endwin();
+    pthread_exit(0);
 }
 
-///IMPRIME NO ECRA OS OBJECTOS
+///IMPRIME NO ECRA OS OBJECTOSd
 
 void Imprime(Objecto *ob) {
     clear;
     Objecto *it;
     it = ob;
     clear();
+
+    init_pair(1, COLOR_BLACK, COLOR_RED);
+    init_pair(2, COLOR_GREEN, COLOR_GREEN);
+    init_pair(3, COLOR_WHITE, COLOR_BLACK);
+
     while (it != NULL) {
-       // if (it->tipo == 0) {
-            mvaddstr(it->y, it->x, "0");     
-       // }
+        if (it->tipo == 1) {
+            attron(COLOR_PAIR(2));
+            mvprintw(it->y, it->x, "0");
+        } else {
+            if (it->tipo > 1000) {
+                attron(COLOR_PAIR(3));
+                mvprintw(it->y, it->x, "X");
+            } else if (it->tipo == 3) {
+                attron(COLOR_PAIR(1));
+                mvprintw(it->y, it->x, "x");
+            }
+        }
+
         it = it->p;
     }
     refresh();

@@ -24,7 +24,7 @@ CLEAN_SUBPROJECTS=${CLEAN_SUBPROJECTS_${SUBPROJECTS}}
 
 
 # Project Name
-PROJECTNAME=BomberMan
+PROJECTNAME=BomberMan-C
 
 # Active Configuration
 DEFAULTCONF=Debug
