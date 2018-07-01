@@ -20,18 +20,15 @@ typedef struct {
 typedef struct {
     Objecto *ob;
     int *Sair;
-    WINDOW * mainwin;
 } PassaThread;
 
 
-Cliente* Inicio(Cliente *c);
 void LimpaStdin(void);
 int EnviaDadosLogin(Cliente *c);
 Objecto* RecebeObjetosIniciais();
 void MostraLabirinto(Objecto *ob);
 void gotoxy(int x, int y);
-void* AtualizaEcra(void *dados);
-void Imprime(Objecto *ob);
+void AtualizaEcra(PassaThread *x);
 
 int main(int argc, char** argv) {
     Cliente c;
@@ -44,79 +41,23 @@ int main(int argc, char** argv) {
     PassaThread *passadadosThread = (PassaThread*) malloc(sizeof (PassaThread));
     pthread_t envia;
 
-    WINDOW * mainwin;
+    c.Ajogar = 3;
+    c.PID = getpid();
 
-    do {
-        clear;
-        Inicio(&c);
-    } while (EnviaDadosLogin(&c) == -1);
+
+    EnviaDadosLogin(&c);
 
     ob = RecebeObjetosIniciais();
+    printf("Jogo Comecou: \n\n");
 
     passadadosThread->Sair = &Sair;
     passadadosThread->ob = ob;
-    passadadosThread->mainwin = mainwin;
 
-    if ((mainwin = initscr()) == NULL) {
-        fprintf(stderr, "Error initialising ncurses.\n");
-        exit(EXIT_FAILURE);
-    }
 
-    noecho();
-    keypad(mainwin, TRUE);
-    curs_set(0);
-    start_color();
-    Imprime(ob);
-
-    pthread_create(&envia, NULL, &AtualizaEcra, (void *) passadadosThread);
-
-    do {
-        scanf("%c", &tecla);
-        fde = open("../MMM", O_WRONLY);
-        if (fde == -1) {
-            printf("Erro ao Abrir FIFO \n");
-            fflush(stdout);
-        } else {
-            j.PID = getpid() + 10000;
-            j.ascii = (int) tecla;
-            write(fde, &j, sizeof (j));
-            close(fde);
-        }
-
-    } while (Sair == 0);
-
-    delwin(mainwin);
-    endwin();
-    refresh();
+    AtualizaEcra(passadadosThread);
     return (EXIT_SUCCESS);
 }
 
-///FUNÇÃO ONDE OCORRE O LOGIN
-/// DO CLIENTE
-
-Cliente* Inicio(Cliente *c) {
-    char Nome[50];
-    char Pass[50];
-
-    do {
-        printf("Nome: ");
-        scanf("%[^\n]", Nome);
-        LimpaStdin();
-    } while (strlen(Nome) <= 0);
-
-
-    do {
-        printf("Palavra-Chave: ");
-        scanf("%[^\n]", Pass);
-        LimpaStdin();
-    } while (strlen(Pass) < 4);
-
-    strcpy(c->nome, Nome);
-    strcpy(c->PalavraChave, Pass);
-    c->PID = getpid();
-
-    return c;
-}
 
 ////FUNÇÃO PARA APANHAR OS ESPAÇOS EM BRANCO
 
@@ -190,8 +131,6 @@ Objecto* RecebeObjetosIniciais() {
 
     while (1) {
         i = read(fd, &b, sizeof (b));
-        printf("Recebeu: %d\n", b.id);
-        fflush(stdout);
         if (i == sizeof (b)) {
             if (b.id == -1) {
                 break;
@@ -229,8 +168,7 @@ void gotoxy(int x, int y) {
 
 ///RECEBE OS DADOS
 
-void* AtualizaEcra(void *dados) {
-    PassaThread *x = (PassaThread*) dados;
+void AtualizaEcra(PassaThread *x) {
     char str[50];
     int fd, i, existe = 0;
     Objecto *it, *temp, *ant = NULL;
@@ -251,19 +189,14 @@ void* AtualizaEcra(void *dados) {
 
             it = x->ob;
             if (b.id == -5) {
-                endwin();
-                refresh();
                 printf("O seu jogador foi kicado!\n");
                 sleep(2);
-                pthread_exit(0);
+                return;
             } else {
                 if (b.tipo == -1) {
-                    clear();
-                    delwin(x->mainwin);
                     endwin();
                     refresh();
                     printf("O Servidor foi terminado!\n");
-                    fflush(stdout);
                     sleep(2);
                     pthread_exit(0);
                 }
@@ -273,6 +206,8 @@ void* AtualizaEcra(void *dados) {
                 if (it->id == b.id) {
                     existe = 1;
                     if (b.ativo == 0) {
+                        if (b.tipo == 3 || b.tipo == 4)
+                            printf("Bomba Explodiu\n");
                         if (ant == NULL) {
                             x->ob = x->ob->p;
                         } else {
@@ -283,6 +218,8 @@ void* AtualizaEcra(void *dados) {
                     } else {
                         it->x = b.x;
                         it->y = b.y;
+                        printf("Jogador Moveu X: %d Y: %d\n", b.x, b.y);
+                        fflush(stdout);
                     }
                     break;
                 }
@@ -302,50 +239,13 @@ void* AtualizaEcra(void *dados) {
                 temp->x = b.x;
                 temp->y = b.y;
                 temp->p = NULL;
-                printf("Adiciona Bomba\n");
+                if (temp->tipo == 3 || temp->tipo == 4) {
+                    printf("Nova Boma Y: %d X: %d\n", temp->x, temp->y);
+                }
+
                 fflush(stdout);
             }
-            Imprime(x->ob);
         }
     }
-    pthread_exit(0);
-}
-
-///IMPRIME NO ECRA OS OBJECTOSd
-
-void Imprime(Objecto *ob) {
-    clear;
-    Objecto *it;
-    it = ob;
-    clear();
-
-    init_pair(1, COLOR_BLACK, COLOR_RED);
-    init_pair(2, COLOR_GREEN, COLOR_GREEN);
-    init_pair(3, COLOR_WHITE, COLOR_BLACK);
-    init_pair(4, COLOR_YELLOW, COLOR_YELLOW);
-
-
-    while (it != NULL) {
-        if (it->tipo == 1) {
-            attron(COLOR_PAIR(2));
-            mvprintw(it->y, it->x, "0");
-        } else {
-            if (it->tipo > 1000) {
-                attron(COLOR_PAIR(3));
-                mvprintw(it->y, it->x, "P");
-            } else if (it->tipo == 3) {
-                attron(COLOR_PAIR(1));
-                mvprintw(it->y, it->x, "x");
-            } else if (it->tipo == 4) {
-                attron(COLOR_PAIR(1));
-                mvprintw(it->y, it->x, "X");
-            } else if (it->tipo == 5) {
-                attron(COLOR_PAIR(4));
-                mvprintw(it->y, it->x, "i");
-            }
-        }
-        it = it->p;
-    }
-    refresh();
 
 }

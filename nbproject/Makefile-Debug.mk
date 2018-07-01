@@ -35,7 +35,8 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
-	${OBJECTDIR}/Cliente.o
+	${OBJECTDIR}/Cliente.o \
+	${OBJECTDIR}/ClienteSeguidor.o
 
 
 # C Compiler Flags
@@ -66,6 +67,11 @@ ${OBJECTDIR}/Cliente.o: Cliente.c
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
 	$(COMPILE.c) -g -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Cliente.o Cliente.c
+
+${OBJECTDIR}/ClienteSeguidor.o: ClienteSeguidor.c
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/ClienteSeguidor.o ClienteSeguidor.c
 
 # Subprojects
 .build-subprojects:

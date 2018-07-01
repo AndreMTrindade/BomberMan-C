@@ -51,6 +51,7 @@ char* UpString(char *s);
 Cliente* AdicionaCliente(Palavra *p, Cliente *c);
 void KickPlayer(Palavra *p, Cliente *c);
 void Users(Cliente *c);
+void Shutdown(Cliente *c);
 void *RecebeJogadores(void *dados);
 void *EnviaDadosJagador(void *dados);
 int VerificaCliente(Cliente *cl, Cliente c);
@@ -129,6 +130,7 @@ Cliente* Shell(Cliente *clientes) {
             case 3:
                 break;
             case 4:
+                Shutdown(clientes);
                 break;
             case 5:
                 break;
@@ -489,7 +491,7 @@ void *EnviaDadosJagador(void *dados) {
     CriarPerso(x->clientes, x->objectos);
 
     while (it != NULL) {
-        if (it->Ajogar == 1) {
+        if (it->Ajogar == 1 || it->Ajogar == 3) {
             sprintf(str, "../JJJ%d", it->PID);
             fd = open(str, O_WRONLY);
             if (fd == -1) {
@@ -519,7 +521,20 @@ void *EnviaDadosJagador(void *dados) {
 /// VERIFICA SE O CLIENTE EXISTE E SE JÁ ESTÁ ONLINE
 
 int VerificaCliente(Cliente *cl, Cliente c) {
-    Cliente *it;
+    Cliente *it, *temp;
+    it = cl;
+    if (c.Ajogar == 3) {
+        while (it->p != NULL) {
+            it = it->p;
+        }
+
+        temp = (Cliente*) malloc(sizeof (Cliente));
+        temp->PID = c.PID;
+        temp->Ajogar = 3;
+        temp->p = NULL;
+        it->p = temp;
+        return 1;
+    }
     it = cl;
     while (it != NULL) {
         if (strcmp(c.nome, it->nome) == 0 && strcmp(c.PalavraChave, it->PalavraChave) == 0) {
@@ -929,7 +944,7 @@ void EnviaNovopTodos(Objecto novo, Cliente *c) {
     it = c;
 
     while (it != NULL) {
-        if (it->Ajogar == 1) {
+        if (it->Ajogar == 1 || it->Ajogar == 3) {
             sprintf(str, "../JJJ%d", it->PID);
             fd = open(str, O_WRONLY);
 
@@ -1182,4 +1197,14 @@ void CriarFogoMega(Objecto *objectos, Objecto *bomba) {
         }
     }
 
+}
+
+void Shutdown(Cliente *c) 
+{
+    Objecto termina;
+    
+    termina.tipo = -1;
+    EnviaNovopTodos(termina,c);
+    
+    
 }
