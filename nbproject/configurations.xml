@@ -42,9 +42,9 @@
           <commandLine>-lpthread -lncurses</commandLine>
         </linkerTool>
       </compileType>
-      <item path="Estruturas.h" ex="false" tool="3" flavor2="0">
+      <item path="Cliente.c" ex="false" tool="0" flavor2="0">
       </item>
-      <item path="Servidor.c" ex="false" tool="0" flavor2="0">
+      <item path="Estruturas.h" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
     <conf name="Release" type="1">

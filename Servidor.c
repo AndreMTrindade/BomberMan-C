@@ -36,7 +36,7 @@ typedef struct Jogada {
 typedef struct PassaThreadBomba {
     Cliente *clientes;
     Objecto *objectos;
-    Objecto bomba;
+    Objecto *bomba;
 } PassaThreadBomba;
 
 
@@ -67,6 +67,11 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos);
 void ColocaJogador(Objecto *novo, Objecto *objectos);
 void EnviaNovopTodos(Objecto novo, Cliente *c);
 void *TrataBomba(void *dados);
+void *TrataMegaBomba(void *dados);
+void CriarFogo(Objecto *objectos, Objecto *bomba);
+void CriarFogoMega(Objecto *objectos, Objecto *bomba);
+
+pthread_mutex_t bloqueiaBomba;
 
 int main(int argc, char** argv) {
     Cliente *clientes = LeClientes();
@@ -662,11 +667,16 @@ void *CorpoJogo(void *dados) {
 
 void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 
-    Objecto * it = b;
-    Objecto novo;
+    Objecto * it = b, *it2 = b;
+    Objecto novo, *novaBomba;
     char tecla;
     int fd;
     char str[50];
+    pthread_t envia;
+    PassaThreadBomba *x = (PassaThreadBomba*) malloc(sizeof ( PassaThreadBomba));
+
+    x->clientes = c;
+    x->objectos = b;
 
     while (it != NULL) {
         if (it->tipo == j.PID) {
@@ -674,37 +684,74 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
             if (toupper(tecla) == 'W' || tecla == 30) {
                 novo = VerificaMovimento(1, b, it);
                 if (novo.y != (it->y - 1)) {
+                    pthread_mutex_lock(&bloqueiaBomba);
                     EnviaNovopTodos(novo, c);
+                    pthread_mutex_unlock(&bloqueiaBomba);
                 }
 
             } else {
                 if (toupper(tecla) == 'S' || tecla == 31) {
                     novo = VerificaMovimento(2, b, it);
                     if (novo.y != (it->y + 1)) {
+                        pthread_mutex_lock(&bloqueiaBomba);
                         EnviaNovopTodos(novo, c);
+                        pthread_mutex_unlock(&bloqueiaBomba);
                     }
 
                 } else {
                     if (toupper(tecla) == 'D' || tecla == 16) {
                         novo = VerificaMovimento(3, b, it);
                         if (novo.x != (it->x + 1)) {
+                            pthread_mutex_lock(&bloqueiaBomba);
                             EnviaNovopTodos(novo, c);
+                            pthread_mutex_unlock(&bloqueiaBomba);
                         }
 
                     } else {
                         if (toupper(tecla) == 'A' || tecla == 17) {
                             novo = VerificaMovimento(4, b, it);
                             if (novo.x != (it->x - 1)) {
+                                pthread_mutex_lock(&bloqueiaBomba);
                                 EnviaNovopTodos(novo, c);
+                                pthread_mutex_unlock(&bloqueiaBomba);
                             }
                         } else {
                             if (tecla == 32) {
+                                it2 = b;
+                                while (it2->p != NULL) {
+                                    it2 = it2->p;
+                                }
+
+                                novaBomba = (Objecto*) malloc(sizeof (Objecto));
+                                it2->p = novaBomba;
+
                                 id++;
-                                novo.id = id;
-                                novo.tipo = 3;
-                                novo.x = it->x;
-                                novo.y = it->y;
-                                EnviaNovopTodos(novo, c);
+                                novaBomba->id = id;
+                                novaBomba->tipo = 3;
+                                novaBomba->explosao = NULL;
+                                novaBomba->x = it->x;
+                                novaBomba->y = it->y;
+                                x->bomba = novaBomba;
+                                pthread_create(&envia, NULL, &TrataBomba, (void *) x);
+                            } else {
+                                if (toupper(tecla) == 'B') {
+                                    it2 = b;
+                                    while (it2->p != NULL) {
+                                        it2 = it2->p;
+                                    }
+
+                                    novaBomba = (Objecto*) malloc(sizeof (Objecto));
+                                    it2->p = novaBomba;
+
+                                    id++;
+                                    novaBomba->id = id;
+                                    novaBomba->tipo = 4;
+                                    novaBomba->explosao = NULL;
+                                    novaBomba->x = it->x;
+                                    novaBomba->y = it->y;
+                                    x->bomba = novaBomba;
+                                    pthread_create(&envia, NULL, &TrataMegaBomba, (void *) x);
+                                }
                             }
                         }
                     }
@@ -891,7 +938,7 @@ void EnviaNovopTodos(Objecto novo, Cliente *c) {
                 fflush(stdout);
                 //   break;
             } else {
-                printf("ENVIA --> ID: %d TIPO: %d  X: %d Y: %d\n", novo.id, novo.tipo, novo.x, novo.y);
+                printf("ENVIA --> ID: %d TIPO: %d  X: %d Y: %d E: %d\n", novo.id, novo.tipo, novo.x, novo.y, novo.ativo);
                 fflush(stdout);
                 write(fd, &novo, sizeof (novo));
                 close(fd);
@@ -921,19 +968,218 @@ void EnviaNovopTodos(Objecto novo, Cliente *c) {
 }
 
 void *TrataBomba(void *dados) {
-    PassaThreadBomba *x = (PassaThreadBomba*)dados;
-    int periodo=0;
-    
-    while(periodo != 3)
-    {
-        x->bomba.tipo *= 30;
-        EnviaNovopTodos(x->bomba, x->clientes);  
-        sleep(1);
-        periodo++;
+    PassaThreadBomba *x = (PassaThreadBomba*) dados;
+    int periodo = 0;
+    Objecto *it = x->objectos;
+
+    x->bomba->tipo = 3;
+    x->bomba->ativo = 1;
+    pthread_mutex_lock(&bloqueiaBomba);
+    EnviaNovopTodos(*(x->bomba), x->clientes);
+    pthread_mutex_unlock(&bloqueiaBomba);
+
+    sleep(3);
+
+    x->bomba->ativo = 0;
+    pthread_mutex_lock(&bloqueiaBomba);
+    EnviaNovopTodos(*(x->bomba), x->clientes);
+    pthread_mutex_unlock(&bloqueiaBomba);
+
+    CriarFogo(x->objectos, x->bomba);
+
+
+    it = x->bomba->explosao;
+    if (x->bomba->explosao != NULL) {
+        while (it != NULL) {
+            pthread_mutex_lock(&bloqueiaBomba);
+            EnviaNovopTodos(*it, x->clientes);
+            pthread_mutex_unlock(&bloqueiaBomba);
+            it = it->p;
+        }
     }
-    
-     x->bomba.ativo = 0;
-     EnviaNovopTodos(x->bomba, x->clientes);  
-     
+
+    sleep(1.5);
+
+    it = x->bomba->explosao;
+    if (x->bomba->explosao != NULL) {
+        while (it != NULL) {
+            it->ativo = 0;
+            pthread_mutex_lock(&bloqueiaBomba);
+            EnviaNovopTodos(*it, x->clientes);
+            pthread_mutex_unlock(&bloqueiaBomba);
+            it = it->p;
+        }
+    }
+
     pthread_exit(0);
+}
+
+void CriarFogo(Objecto *objectos, Objecto *bomba) {
+    Objecto *it = bomba;
+    Objecto *itb = objectos;
+    Objecto temp, *novo;
+    int encontrou = 0;
+    temp = *bomba;
+
+    id++;
+    novo = (Objecto*) malloc(sizeof (Objecto));
+    novo->ativo = 1;
+    novo->id = id;
+    novo->p = NULL;
+    novo->tipo = 5;
+    novo->x = temp.x;
+    novo->y = temp.y;
+
+    it->explosao = novo;
+    it = novo;
+
+    for (int i = 0; i < 4; i++) {
+        temp = *bomba;
+        for (int j = 0; j < 2; j++) {
+            if (i == 0) {
+                temp.y++;
+            } else if (i == 1) {
+                temp.y--;
+            } else if (i == 2) {
+                temp.x++;
+            } else if (i == 3) {
+                temp.x--;
+            }
+
+            encontrou = 1;
+            itb = objectos;
+            while (itb != NULL) {
+                if (itb->x == temp.x && itb->y == temp.y && itb->tipo == 1) {
+                    encontrou = 0;
+
+                    j = 2;
+                    break;
+                }
+                itb = itb->p;
+            }
+
+            if (encontrou == 1) {
+                id++;
+                novo = (Objecto*) malloc(sizeof (Objecto));
+                novo->ativo = 1;
+                novo->id = id;
+                novo->p = NULL;
+                novo->tipo = 5;
+                novo->x = temp.x;
+                novo->y = temp.y;
+
+                it->p = novo;
+                it = novo;
+            }
+        }
+    }
+
+}
+
+void *TrataMegaBomba(void *dados) {
+    PassaThreadBomba *x = (PassaThreadBomba*) dados;
+    int periodo = 0;
+    Objecto *it = x->objectos;
+
+    x->bomba->tipo = 4;
+    x->bomba->ativo = 1;
+    pthread_mutex_lock(&bloqueiaBomba);
+    EnviaNovopTodos(*(x->bomba), x->clientes);
+    pthread_mutex_unlock(&bloqueiaBomba);
+
+    sleep(3);
+
+    x->bomba->ativo = 0;
+    pthread_mutex_lock(&bloqueiaBomba);
+    EnviaNovopTodos(*(x->bomba), x->clientes);
+    pthread_mutex_unlock(&bloqueiaBomba);
+
+    CriarFogoMega(x->objectos, x->bomba);
+
+
+    it = x->bomba->explosao;
+    if (x->bomba->explosao != NULL) {
+        while (it != NULL) {
+            pthread_mutex_lock(&bloqueiaBomba);
+            EnviaNovopTodos(*it, x->clientes);
+            pthread_mutex_unlock(&bloqueiaBomba);
+            it = it->p;
+        }
+    }
+
+    sleep(1.5);
+
+    it = x->bomba->explosao;
+    if (x->bomba->explosao != NULL) {
+        while (it != NULL) {
+            it->ativo = 0;
+            pthread_mutex_lock(&bloqueiaBomba);
+            EnviaNovopTodos(*it, x->clientes);
+            pthread_mutex_unlock(&bloqueiaBomba);
+            it = it->p;
+        }
+    }
+
+    pthread_exit(0);
+}
+
+void CriarFogoMega(Objecto *objectos, Objecto *bomba) {
+    Objecto *it = bomba;
+    Objecto *itb = objectos;
+    Objecto temp, *novo;
+    int encontrou = 0;
+    temp = *bomba;
+
+    id++;
+    novo = (Objecto*) malloc(sizeof (Objecto));
+    novo->ativo = 1;
+    novo->id = id;
+    novo->p = NULL;
+    novo->tipo = 5;
+    novo->x = temp.x;
+    novo->y = temp.y;
+
+    it->explosao = novo;
+    it = novo;
+
+    for (int i = 0; i < 4; i++) {
+        temp = *bomba;
+        for (int j = 0; j < 4; j++) {
+            if (i == 0) {
+                temp.y++;
+            } else if (i == 1) {
+                temp.y--;
+            } else if (i == 2) {
+                temp.x++;
+            } else if (i == 3) {
+                temp.x--;
+            }
+
+            encontrou = 1;
+            itb = objectos;
+            while (itb != NULL) {
+                if (itb->x == temp.x && itb->y == temp.y && itb->tipo == 1) {
+                    encontrou = 0;
+                    j = 4;
+                    break;
+                }
+                itb = itb->p;
+            }
+
+            if (encontrou == 1) {
+                id++;
+                novo = (Objecto*) malloc(sizeof (Objecto));
+                novo->ativo = 1;
+                novo->id = id;
+                novo->p = NULL;
+                novo->tipo = 5;
+                novo->x = temp.x;
+                novo->y = temp.y;
+
+                it->p = novo;
+                it = novo;
+            }
+        }
+    }
+
 }

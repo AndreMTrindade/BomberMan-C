@@ -32,7 +32,8 @@ typedef struct Objecto{
     int id;
     int x,y;
     int ativo;
-    int tipo; //
+    int tipo;
+    struct Objecto *explosao;
     struct Objecto *p;
 }Objecto;
    

@@ -309,6 +309,8 @@ void Imprime(Objecto *ob) {
     init_pair(1, COLOR_BLACK, COLOR_RED);
     init_pair(2, COLOR_GREEN, COLOR_GREEN);
     init_pair(3, COLOR_WHITE, COLOR_BLACK);
+    init_pair(4, COLOR_YELLOW, COLOR_YELLOW);
+
 
     while (it != NULL) {
         if (it->tipo == 1) {
@@ -317,13 +319,18 @@ void Imprime(Objecto *ob) {
         } else {
             if (it->tipo > 1000) {
                 attron(COLOR_PAIR(3));
-                mvprintw(it->y, it->x, "X");
+                mvprintw(it->y, it->x, "P");
             } else if (it->tipo == 3) {
                 attron(COLOR_PAIR(1));
                 mvprintw(it->y, it->x, "x");
+            } else if (it->tipo == 4) {
+                attron(COLOR_PAIR(1));
+                mvprintw(it->y, it->x, "X");
+            }  else if (it->tipo == 5) {
+                attron(COLOR_PAIR(4));
+                mvprintw(it->y, it->x, "i");
             }
         }
-
         it = it->p;
     }
     refresh();
