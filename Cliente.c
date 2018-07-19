@@ -314,7 +314,7 @@ void* AtualizaEcra(void *dados) {
 ///IMPRIME NO ECRA OS OBJECTOSd
 
 void Imprime(Objecto *ob) {
-    clear;
+  clear;
     Objecto *it;
     it = ob;
     clear();
@@ -323,6 +323,9 @@ void Imprime(Objecto *ob) {
     init_pair(2, COLOR_GREEN, COLOR_GREEN);
     init_pair(3, COLOR_WHITE, COLOR_BLACK);
     init_pair(4, COLOR_YELLOW, COLOR_YELLOW);
+    init_pair(5, COLOR_WHITE, COLOR_WHITE);
+    init_pair(6, COLOR_BLUE, COLOR_BLUE);
+    init_pair(7, COLOR_RED, COLOR_BLACK);
 
 
     while (it != NULL) {
@@ -333,6 +336,9 @@ void Imprime(Objecto *ob) {
             if (it->tipo > 1000) {
                 attron(COLOR_PAIR(3));
                 mvprintw(it->y, it->x, "P");
+            } else if (it->tipo == 2) {
+                attron(COLOR_PAIR(5));
+                mvprintw(it->y, it->x, "O");
             } else if (it->tipo == 3) {
                 attron(COLOR_PAIR(1));
                 mvprintw(it->y, it->x, "x");
@@ -342,6 +348,12 @@ void Imprime(Objecto *ob) {
             } else if (it->tipo == 5) {
                 attron(COLOR_PAIR(4));
                 mvprintw(it->y, it->x, "i");
+            } else if (it->tipo == 6) {
+                attron(COLOR_PAIR(6));
+                mvprintw(it->y, it->x, "U");
+            } else if (it->tipo == 7) {
+                attron(COLOR_PAIR(7));
+                mvprintw(it->y, it->x, "I");
             }
         }
         it = it->p;

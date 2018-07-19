@@ -66,6 +66,7 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c);
 Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob);
 void CriarPerso(Cliente *clientes, Objecto *bjectos);
 void ColocaJogador(Objecto *novo, Objecto *objectos);
+void ColocaInimigo(Objecto *novo, Objecto *objectos);
 void EnviaNovopTodos(Objecto novo, Cliente *c);
 void *TrataBomba(void *dados);
 void *TrataMegaBomba(void *dados);
@@ -603,25 +604,47 @@ Objecto* LeLabirinto() {
                     ultimo = ultimo->p;
                 }
             } else {
-                if (c == 'S') {
+                if (c == '0') {
                     if (ob == NULL) {
                         ob = (Objecto*) malloc(sizeof (Objecto));
                         ob->ativo = 1;
                         ob->id = ++id;
-                        ob->tipo = 3;
+                        ob->tipo = 2;
                         ob->x = x;
                         ob->y = y;
                         ob->p = NULL;
                         ultimo = ob;
                     } else {
                         ultimo->p = (Objecto*) malloc(sizeof (Objecto));
-                        ultimo->p->ativo = 3;
+                        ultimo->p->ativo = 1;
                         ultimo->p->id = ++id;
                         ultimo->p->x = x;
                         ultimo->p->y = y;
-                        ultimo->p->tipo = 1;
+                        ultimo->p->tipo = 2;
                         ultimo->p->p = NULL;
                         ultimo = ultimo->p;
+                    }
+                } else {
+                    if (c == '4') {
+                        if (ob == NULL) {
+                            ob = (Objecto*) malloc(sizeof (Objecto));
+                            ob->ativo = 1;
+                            ob->id = ++id;
+                            ob->tipo = 6;
+                            ob->x = x;
+                            ob->y = y;
+                            ob->p = NULL;
+                            ultimo = ob;
+                        } else {
+                            ultimo->p = (Objecto*) malloc(sizeof (Objecto));
+                            ultimo->p->ativo = 1;
+                            ultimo->p->id = ++id;
+                            ultimo->p->x = x;
+                            ultimo->p->y = y;
+                            ultimo->p->tipo = 6;
+                            ultimo->p->p = NULL;
+                            ultimo = ultimo->p;
+                        }
                     }
                 }
             }
@@ -865,6 +888,7 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
     Objecto *itb;
     Objecto *ult;
     Objecto *novo;
+    int i;
 
     it = clientes;
     itb = bjectos;
@@ -889,15 +913,32 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
         it = it->p;
     }
 
+    while (itb->p != NULL) {
+        itb = itb->p;
+    }
+    ult = itb;
+
+    for (i = 0; i < 5; i++) {
+        novo = (Objecto*) malloc(sizeof (Objecto));
+        id++;
+        novo->id = id;
+        novo->ativo = 1;
+        novo->tipo = 7;
+        ColocaInimigo(novo, bjectos);
+        ult->p = novo;
+        novo->p = NULL;
+        ult = novo;
+    }
+
 }
 
 //COLOCA O JOGADOR NO MAPA
 
 void ColocaJogador(Objecto *novo, Objecto *objectos) {
-
     Objecto *it;
     int x = 2, y = 2, sair = 0;
 
+    srand(time(NULL));
 
     do {
         it = objectos;
@@ -911,9 +952,38 @@ void ColocaJogador(Objecto *novo, Objecto *objectos) {
             it = it->p;
             sair = 1;
         }
-        x = x + 2;
+        y = rand() % 30;
     } while (sair == 0);
+}
 
+//COLOCA OS INIMIGOS NO MAPA
+
+void ColocaInimigo(Objecto *novo, Objecto *objectos) {
+
+    Objecto *it;
+    int x = 18, y = 2, sair = 1;
+
+    srand(time(NULL));
+
+    do {
+        it = objectos;
+        sair = 1;
+        while (it != NULL) {
+            if (it->x == x && it->y == y) {
+                sair = 0;
+                break;
+            }
+            it = it->p;
+        }
+        if (sair == 1) {
+            novo->x = x;
+            novo->y = y;
+            printf("\nposicao %d %d\n", x, y);
+            break;
+        } else
+            y = rand() % 20;
+
+    } while (sair == 0);
 }
 
 ///KICKA O JOGADOR DO JOGO
@@ -1199,12 +1269,11 @@ void CriarFogoMega(Objecto *objectos, Objecto *bomba) {
 
 }
 
-void Shutdown(Cliente *c) 
-{
+void Shutdown(Cliente *c) {
     Objecto termina;
-    
+
     termina.tipo = -1;
-    EnviaNovopTodos(termina,c);
-    
-    
+    EnviaNovopTodos(termina, c);
+
+
 }

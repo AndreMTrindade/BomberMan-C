@@ -35,8 +35,7 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
-	${OBJECTDIR}/Cliente.o \
-	${OBJECTDIR}/ClienteSeguidor.o
+	${OBJECTDIR}/Servidor.o
 
 
 # C Compiler Flags
@@ -63,15 +62,10 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/bomberman-c: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
 	gcc -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/bomberman-c ${OBJECTFILES} ${LDLIBSOPTIONS} -lpthread -lncurses
 
-${OBJECTDIR}/Cliente.o: Cliente.c
+${OBJECTDIR}/Servidor.o: Servidor.c
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
-	$(COMPILE.c) -g -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Cliente.o Cliente.c
-
-${OBJECTDIR}/ClienteSeguidor.o: ClienteSeguidor.c
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} "$@.d"
-	$(COMPILE.c) -g -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/ClienteSeguidor.o ClienteSeguidor.c
+	$(COMPILE.c) -g -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Servidor.o Servidor.c
 
 # Subprojects
 .build-subprojects:
