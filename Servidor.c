@@ -63,7 +63,7 @@ void gotoxy(int x, int y);
 void MostraLabirinto(Objecto *ob);
 void *CorpoJogo(void *dados);
 void TrataAccao(Objecto *b, Jogada j, Cliente *c);
-Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob);
+Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c);
 void CriarPerso(Cliente *clientes, Objecto *bjectos);
 void ColocaJogador(Objecto *novo, Objecto *objectos);
 void ColocaInimigo(Objecto *novo, Objecto *objectos);
@@ -72,6 +72,9 @@ void *TrataBomba(void *dados);
 void *TrataMegaBomba(void *dados);
 void CriarFogo(Objecto *objectos, Objecto *bomba);
 void CriarFogoMega(Objecto *objectos, Objecto *bomba);
+void verificaColisao(Objecto *bomba, Objecto *ob, Cliente *c);
+void *MoveInimigo(void *dados);
+void ApanhaBomba(int id, Objecto *ObjectoBomba, Objecto *lob, Cliente *c);
 
 pthread_mutex_t bloqueiaBomba;
 
@@ -625,12 +628,12 @@ Objecto* LeLabirinto() {
                         ultimo = ultimo->p;
                     }
                 } else {
-                    if (c == '4') {
+                    if (c == 'o') {
                         if (ob == NULL) {
                             ob = (Objecto*) malloc(sizeof (Objecto));
                             ob->ativo = 1;
                             ob->id = ++id;
-                            ob->tipo = 6;
+                            ob->tipo = 8;
                             ob->x = x;
                             ob->y = y;
                             ob->p = NULL;
@@ -641,9 +644,31 @@ Objecto* LeLabirinto() {
                             ultimo->p->id = ++id;
                             ultimo->p->x = x;
                             ultimo->p->y = y;
-                            ultimo->p->tipo = 6;
+                            ultimo->p->tipo = 8;
                             ultimo->p->p = NULL;
                             ultimo = ultimo->p;
+                        }
+                    } else {
+                        if (c == 'O') {
+                            if (ob == NULL) {
+                                ob = (Objecto*) malloc(sizeof (Objecto));
+                                ob->ativo = 1;
+                                ob->id = ++id;
+                                ob->tipo = 9;
+                                ob->x = x;
+                                ob->y = y;
+                                ob->p = NULL;
+                                ultimo = ob;
+                            } else {
+                                ultimo->p = (Objecto*) malloc(sizeof (Objecto));
+                                ultimo->p->ativo = 1;
+                                ultimo->p->id = ++id;
+                                ultimo->p->x = x;
+                                ultimo->p->y = y;
+                                ultimo->p->tipo = 9;
+                                ultimo->p->p = NULL;
+                                ultimo = ultimo->p;
+                            }
                         }
                     }
                 }
@@ -681,6 +706,7 @@ void *CorpoJogo(void *dados) {
     Jogada j;
     Objecto novo;
     int i, fd;
+    pthread_t recebe;
 
     mkfifo("../MMM", 0600);
     fd = open("../MMM", O_RDWR);
@@ -691,8 +717,9 @@ void *CorpoJogo(void *dados) {
         pthread_exit(0);
     }
 
-    while (*(x->Sair) == 0) {
+    pthread_create(&recebe, NULL, &MoveInimigo, (void *) x);
 
+    while (*(x->Sair) == 0) {
         i = read(fd, &j, sizeof (j));
         if (i == sizeof (j)) {
             TrataAccao(x->objectos, j, x->clientes);
@@ -707,6 +734,7 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 
     Objecto * it = b, *it2 = b;
     Objecto novo, *novaBomba;
+    Cliente *itc = c;
     char tecla;
     int fd;
     char str[50];
@@ -720,7 +748,7 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
         if (it->tipo == j.PID) {
             tecla = j.ascii;
             if (toupper(tecla) == 'W' || tecla == 30) {
-                novo = VerificaMovimento(1, b, it);
+                novo = VerificaMovimento(1, b, it, c);
                 if (novo.y != (it->y - 1)) {
                     pthread_mutex_lock(&bloqueiaBomba);
                     EnviaNovopTodos(novo, c);
@@ -729,7 +757,7 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 
             } else {
                 if (toupper(tecla) == 'S' || tecla == 31) {
-                    novo = VerificaMovimento(2, b, it);
+                    novo = VerificaMovimento(2, b, it, c);
                     if (novo.y != (it->y + 1)) {
                         pthread_mutex_lock(&bloqueiaBomba);
                         EnviaNovopTodos(novo, c);
@@ -738,7 +766,7 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 
                 } else {
                     if (toupper(tecla) == 'D' || tecla == 16) {
-                        novo = VerificaMovimento(3, b, it);
+                        novo = VerificaMovimento(3, b, it, c);
                         if (novo.x != (it->x + 1)) {
                             pthread_mutex_lock(&bloqueiaBomba);
                             EnviaNovopTodos(novo, c);
@@ -747,7 +775,7 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 
                     } else {
                         if (toupper(tecla) == 'A' || tecla == 17) {
-                            novo = VerificaMovimento(4, b, it);
+                            novo = VerificaMovimento(4, b, it, c);
                             if (novo.x != (it->x - 1)) {
                                 pthread_mutex_lock(&bloqueiaBomba);
                                 EnviaNovopTodos(novo, c);
@@ -755,11 +783,24 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
                             }
                         } else {
                             if (tecla == 32) {
+                                itc = c;
+                                while (itc != NULL) {
+                                    if (itc->PID == (j.PID - 10000)) {
+                                        if (itc->nBomba > 0) {
+                                            itc->nBomba--;
+                                            break;
+                                        } else {
+                                            return;
+                                        }
+
+                                    }
+                                    itc = itc->p;
+                                }
+
                                 it2 = b;
                                 while (it2->p != NULL) {
                                     it2 = it2->p;
                                 }
-
                                 novaBomba = (Objecto*) malloc(sizeof (Objecto));
                                 it2->p = novaBomba;
 
@@ -770,9 +811,23 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
                                 novaBomba->x = it->x;
                                 novaBomba->y = it->y;
                                 x->bomba = novaBomba;
+
                                 pthread_create(&envia, NULL, &TrataBomba, (void *) x);
                             } else {
                                 if (toupper(tecla) == 'B') {
+                                    itc = c;
+                                    while (itc != NULL) {
+                                        if (itc->PID == j.PID - 10000) {
+                                            if (itc->nMegaBomba > 0) {
+                                                itc->nMegaBomba--;
+                                            } else {
+                                                return;
+                                            }
+
+                                        }
+                                        itc = itc->p;
+                                    }
+
                                     it2 = b;
                                     while (it2->p != NULL) {
                                         it2 = it2->p;
@@ -803,8 +858,10 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 
 //VERIFICA SE A ACÇAO PERTENDIDA É POSSIVEL
 
-Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
+Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
+
     Objecto *it = lob;
+    Cliente *itc;
     int conta = 0;
 
     if (tecla == 1) {
@@ -814,7 +871,13 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
             return *ob;
         } else {
             while (it != NULL) {
-                if (ob->id != it->id && it->y == y && it->x == ob->x && it->tipo != 3) {
+                if (ob->id != it->id && it->y == y && it->x == ob->x) {
+                    if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5) && ob->tipo > 10000) {
+                        if (it->tipo == 8 || it->tipo == 9) {
+                            ApanhaBomba(ob->tipo, it, lob, c);
+                        }
+                        ob->y = y;
+                    }
                     return *ob;
                 }
                 it = it->p;
@@ -831,7 +894,13 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
                 return *ob;
             } else {
                 while (it != NULL) {
-                    if (ob->id != it->id && it->y == y && it->x == ob->x && it->tipo != 3) {
+                    if (ob->id != it->id && it->y == y && it->x == ob->x) {
+                        if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5) && ob->tipo > 10000) {
+                            if (it->tipo == 8 || it->tipo == 9) {
+                                ApanhaBomba(ob->tipo, it, lob, c);
+                            }
+                            ob->y = y;
+                        }
                         return *ob;
                     }
                     it = it->p;
@@ -848,7 +917,13 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
                 } else {
 
                     while (it != NULL) {
-                        if (ob->id != it->id && it->y == ob->y && it->x == x && it->tipo != 3) {
+                        if (ob->id != it->id && it->y == ob->y && it->x == x) {
+                            if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5) && ob->tipo > 10000) {
+                                if (it->tipo == 8 || it->tipo == 9) {
+                                    ApanhaBomba(ob->tipo, it, lob, c);
+                                }
+                                ob->x = x;
+                            }
                             return *ob;
                         }
                         it = it->p;
@@ -864,14 +939,19 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob) {
                         return *ob;
                     } else {
                         while (it != NULL) {
-                            if (ob->id != it->id && it->y == ob->y && it->x == x && it->tipo != 3) {
+                            if (ob->id != it->id && it->y == ob->y && it->x == x) {
+                                if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5) && ob->tipo > 10000) {
+                                    if (it->tipo == 8 || it->tipo == 9) {
+                                        ApanhaBomba(ob->tipo, it, lob, c);
+                                    }
+                                    ob->x = x;
+                                }
                                 return *ob;
                             }
                             it = it->p;
                         }
                         ob->x = x;
                         return *ob;
-
                     }
                 }
             }
@@ -905,6 +985,9 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
             novo->id = id;
             novo->ativo = 1;
             novo->tipo = it->PID + 10000;
+            it->pontos = 0;
+            it->nMegaBomba = 2;
+            it->nBomba = 3;
             ColocaJogador(novo, bjectos);
             ult->p = novo;
             novo->p = NULL;
@@ -986,6 +1069,51 @@ void ColocaInimigo(Objecto *novo, Objecto *objectos) {
     } while (sair == 0);
 }
 
+//CRIA MOVIMENTOS PARA O INIMIGO
+
+void *MoveInimigo(void *dados) {
+    PassarThreadJogo *x = (PassarThreadJogo*) dados;
+    Objecto *it, alterado;
+    int direcao; //1 cima 2 baixo 3 direita 4 esquedar
+    int sair = 0, tentativas = 2, tempx, tempy;
+    srand(time(NULL));
+
+    while (*(x->Sair) == 0) {
+        it = x->objectos;
+        sleep(1);
+        while (it != NULL) {
+            if (it->tipo == 7) {
+                sair = 1;
+                do {
+                    tentativas = 4;
+                    direcao = rand() % 4;
+                    direcao++;
+                    tempx = it->x;
+                    tempy = it->y;
+                    alterado = VerificaMovimento(direcao, x->objectos, it, NULL);
+                    it->ativo = alterado.ativo;
+                    it->id = alterado.id;
+                    it->tipo = alterado.tipo;
+                    it->x = alterado.x;
+                    it->y = alterado.y;
+                    if (it->x == tempx && it->y == tempy) {
+                        tentativas--;
+                        if (tentativas == 0) {
+                            sair = 0;
+                        }
+                    } else {
+                        sair = 0;
+                    }
+                } while (sair == 1);
+                pthread_mutex_lock(&bloqueiaBomba);
+                EnviaNovopTodos(*(it), x->clientes);
+                pthread_mutex_unlock(&bloqueiaBomba);
+            }
+            it = it->p;
+        }
+    }
+}
+
 ///KICKA O JOGADOR DO JOGO
 
 void KickPlayer(Palavra *p, Cliente *c) {
@@ -1056,6 +1184,7 @@ void *TrataBomba(void *dados) {
     PassaThreadBomba *x = (PassaThreadBomba*) dados;
     int periodo = 0;
     Objecto *it = x->objectos;
+    Objecto *ant;
 
     x->bomba->tipo = 3;
     x->bomba->ativo = 1;
@@ -1063,7 +1192,7 @@ void *TrataBomba(void *dados) {
     EnviaNovopTodos(*(x->bomba), x->clientes);
     pthread_mutex_unlock(&bloqueiaBomba);
 
-    sleep(3);
+    sleep(2);
 
     x->bomba->ativo = 0;
     pthread_mutex_lock(&bloqueiaBomba);
@@ -1084,6 +1213,7 @@ void *TrataBomba(void *dados) {
     }
 
     sleep(1.5);
+    verificaColisao(x->bomba, x->objectos, x->clientes);
 
     it = x->bomba->explosao;
     if (x->bomba->explosao != NULL) {
@@ -1095,6 +1225,20 @@ void *TrataBomba(void *dados) {
             it = it->p;
         }
     }
+
+    it = x->objectos;
+    ant = it;
+
+    while (it != NULL) {
+        if (it->id == x->bomba->id) {
+            ant->p = it->p;
+            free(it);
+            break;
+        }
+        ant = it;
+        it = it->p;
+    }
+
 
     pthread_exit(0);
 }
@@ -1165,6 +1309,7 @@ void *TrataMegaBomba(void *dados) {
     PassaThreadBomba *x = (PassaThreadBomba*) dados;
     int periodo = 0;
     Objecto *it = x->objectos;
+    Objecto *ant;
 
     x->bomba->tipo = 4;
     x->bomba->ativo = 1;
@@ -1193,6 +1338,7 @@ void *TrataMegaBomba(void *dados) {
     }
 
     sleep(1.5);
+    verificaColisao(x->bomba, x->objectos, x->clientes);
 
     it = x->bomba->explosao;
     if (x->bomba->explosao != NULL) {
@@ -1205,6 +1351,18 @@ void *TrataMegaBomba(void *dados) {
         }
     }
 
+    it = x->objectos;
+    ant = it;
+
+    while (it != NULL) {
+        if (it->id == x->bomba->id) {
+            ant->p = it->p;
+            free(it);
+            break;
+        }
+        ant = it;
+        it = it->p;
+    }
     pthread_exit(0);
 }
 
@@ -1274,6 +1432,83 @@ void Shutdown(Cliente *c) {
 
     termina.tipo = -1;
     EnviaNovopTodos(termina, c);
+
+
+}
+
+void verificaColisao(Objecto *bomba, Objecto *ob, Cliente *c) {
+    Objecto *it = bomba->explosao;
+    Objecto *it2 = ob;
+    Objecto *ant = ob;
+    Objecto *temp;
+
+    while (it != NULL) {
+        it2 = ob;
+        while (it2 != NULL) {
+            if (it2->tipo == 2 || it2->tipo == 6 || it2->tipo == 7) {
+                if (it2->x == it->x && it2->y == it->y) {
+                    temp = it2;
+                    temp->ativo = 0;
+
+                    pthread_mutex_lock(&bloqueiaBomba);
+                    EnviaNovopTodos(*temp, c);
+                    pthread_mutex_unlock(&bloqueiaBomba);
+
+                    ant->p = it2->p;
+                    it2 = it2 -> p;
+                    free(temp);
+
+                } else {
+                    ant = it2;
+                    it2 = it2->p;
+                }
+            } else {
+                ant = it2;
+                it2 = it2->p;
+            }
+
+        }
+        it = it->p;
+    }
+}
+
+void ApanhaBomba(int id, Objecto *ObjectoBomba, Objecto *lob, Cliente *c) {
+    Objecto *ant;
+    Objecto *ito;
+    Cliente *it = c;
+
+    while (it != NULL) {
+        if (it->PID == id - 10000) {
+            if (ObjectoBomba->tipo == 8) {
+                it->nBomba++;
+            } else {
+                if (ObjectoBomba->tipo == 9) {
+                    it->nMegaBomba++;
+                }
+            }
+            break;
+        }
+        it = it->p;
+    }
+
+    ito = lob;
+
+    while (ito != NULL) {
+        if (ito->id == ObjectoBomba->id) {
+            ObjectoBomba->ativo = 0;
+            pthread_mutex_lock(&bloqueiaBomba);
+            EnviaNovopTodos(*(ObjectoBomba), c);
+            pthread_mutex_unlock(&bloqueiaBomba);
+            ant->p = ito->p;
+            free(ito);
+            break;
+        }
+        ant = ito;
+        ito = ito->p;
+    }
+
+
+
 
 
 }

@@ -302,8 +302,6 @@ void* AtualizaEcra(void *dados) {
                 temp->x = b.x;
                 temp->y = b.y;
                 temp->p = NULL;
-                printf("Adiciona Bomba\n");
-                fflush(stdout);
             }
             Imprime(x->ob);
         }
@@ -326,7 +324,7 @@ void Imprime(Objecto *ob) {
     init_pair(5, COLOR_WHITE, COLOR_WHITE);
     init_pair(6, COLOR_BLUE, COLOR_BLUE);
     init_pair(7, COLOR_RED, COLOR_BLACK);
-
+    init_pair(8, COLOR_BLACK, COLOR_YELLOW);
 
     while (it != NULL) {
         if (it->tipo == 1) {
@@ -354,6 +352,12 @@ void Imprime(Objecto *ob) {
             } else if (it->tipo == 7) {
                 attron(COLOR_PAIR(7));
                 mvprintw(it->y, it->x, "I");
+            } else if (it->tipo == 8) {
+                attron(COLOR_PAIR(8));
+                mvprintw(it->y, it->x, "x");
+            } else if (it->tipo == 9) {
+                attron(COLOR_PAIR(8));
+                mvprintw(it->y, it->x, "X");
             }
         }
         it = it->p;

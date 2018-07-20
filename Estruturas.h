@@ -26,6 +26,9 @@ typedef struct Cliente{
    int PID;
    int Ajogar;
    struct Cliente *p;
+   int pontos;
+   int nMegaBomba;
+   int nBomba;
 }Cliente;    
     
 typedef struct Objecto{
