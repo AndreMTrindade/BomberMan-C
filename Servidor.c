@@ -74,7 +74,10 @@ void CriarFogo(Objecto *objectos, Objecto *bomba);
 void CriarFogoMega(Objecto *objectos, Objecto *bomba);
 void verificaColisao(Objecto *bomba, Objecto *ob, Cliente *c);
 void *MoveInimigo(void *dados);
-void ApanhaBomba(int id, Objecto *ObjectoBomba, Objecto *lob, Cliente *c);
+void ApanhaItem(int id, Objecto *ObjectoLargado, Objecto *lob, Cliente *c);
+void jogadorPerdeu(Objecto jogador, Cliente *c);
+void largarItem(Objecto *ob, Objecto it2, Cliente *c);
+void ColocaPantano(Objecto *novo, Objecto *objectos);
 
 pthread_mutex_t bloqueiaBomba;
 
@@ -457,7 +460,7 @@ void *RecebeJogadores(void *dados) {
                 res = VerificaCliente(Clientes, c);
                 write(fd_resp, &res, sizeof (res));
                 close(fd_resp);
-                if (Conta(Clientes) == 1) {//ALTERAR
+                if (Conta(Clientes) == 2) {//ALTERAR
                     printf("\nLimite de Clientes atingido\n");
                     fflush(stdout);
                     close(fd);
@@ -872,9 +875,9 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
         } else {
             while (it != NULL) {
                 if (ob->id != it->id && it->y == y && it->x == ob->x) {
-                    if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5) && ob->tipo > 10000) {
-                        if (it->tipo == 8 || it->tipo == 9) {
-                            ApanhaBomba(ob->tipo, it, lob, c);
+                    if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
+                        if (it->tipo == 8 || it->tipo == 9 || it->tipo == 10 || it->tipo == 11) {
+                            ApanhaItem(ob->tipo, it, lob, c);
                         }
                         ob->y = y;
                     }
@@ -895,9 +898,9 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
             } else {
                 while (it != NULL) {
                     if (ob->id != it->id && it->y == y && it->x == ob->x) {
-                        if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5) && ob->tipo > 10000) {
-                            if (it->tipo == 8 || it->tipo == 9) {
-                                ApanhaBomba(ob->tipo, it, lob, c);
+                        if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
+                            if (it->tipo == 8 || it->tipo == 9 || it->tipo == 10 || it->tipo == 11) {
+                                ApanhaItem(ob->tipo, it, lob, c);
                             }
                             ob->y = y;
                         }
@@ -918,9 +921,9 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
 
                     while (it != NULL) {
                         if (ob->id != it->id && it->y == ob->y && it->x == x) {
-                            if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5) && ob->tipo > 10000) {
-                                if (it->tipo == 8 || it->tipo == 9) {
-                                    ApanhaBomba(ob->tipo, it, lob, c);
+                            if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
+                                if (it->tipo == 8 || it->tipo == 9 || it->tipo == 10 || it->tipo == 11) {
+                                    ApanhaItem(ob->tipo, it, lob, c);
                                 }
                                 ob->x = x;
                             }
@@ -940,9 +943,9 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
                     } else {
                         while (it != NULL) {
                             if (ob->id != it->id && it->y == ob->y && it->x == x) {
-                                if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5) && ob->tipo > 10000) {
-                                    if (it->tipo == 8 || it->tipo == 9) {
-                                        ApanhaBomba(ob->tipo, it, lob, c);
+                                if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
+                                    if (it->tipo == 8 || it->tipo == 9 || it->tipo == 10 || it->tipo == 11) {
+                                        ApanhaItem(ob->tipo, it, lob, c);
                                     }
                                     ob->x = x;
                                 }
@@ -968,6 +971,7 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
     Objecto *itb;
     Objecto *ult;
     Objecto *novo;
+    int nMaxPantano;
     int i;
 
     it = clientes;
@@ -1012,7 +1016,50 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
         novo->p = NULL;
         ult = novo;
     }
+    
+    nMaxPantano = 5 + (rand() % 10);
 
+    for (i = 0; i < nMaxPantano; i++) {
+        novo = (Objecto*) malloc(sizeof (Objecto));
+        id++;
+        novo->id = id;
+        novo->ativo = 1;
+        novo->tipo = 6;
+        ColocaPantano(novo, bjectos);
+        ult->p = novo;
+        novo->p = NULL;
+        ult = novo;
+    }
+
+}
+
+void ColocaPantano(Objecto *novo, Objecto *objectos) {
+
+    Objecto *it;
+    int x = 0, y = 0, sair = 1;
+
+    srand(time(NULL));
+    x = rand() % 30;
+    x++;
+    do {
+        it = objectos;
+        sair = 1;
+        while (it != NULL) {
+            if (it->x == x && it->y == y) {
+                sair = 0;
+                break;
+            }
+            it = it->p;
+        }
+        if (sair == 1) {
+            novo->x = x;
+            novo->y = y;
+            
+            break;
+        } else
+            y = rand() % 20;
+            x = rand() % 30;
+    } while (sair == 0);
 }
 
 //COLOCA O JOGADOR NO MAPA
@@ -1035,7 +1082,7 @@ void ColocaJogador(Objecto *novo, Objecto *objectos) {
             it = it->p;
             sair = 1;
         }
-        y = rand() % 30;
+        y = rand() % 20;
     } while (sair == 0);
 }
 
@@ -1445,10 +1492,15 @@ void verificaColisao(Objecto *bomba, Objecto *ob, Cliente *c) {
     while (it != NULL) {
         it2 = ob;
         while (it2 != NULL) {
-            if (it2->tipo == 2 || it2->tipo == 6 || it2->tipo == 7) {
+            if (it2->tipo == 2 || it2->tipo == 6 || it2->tipo == 7 || it2->tipo > 10000) {
                 if (it2->x == it->x && it2->y == it->y) {
                     temp = it2;
                     temp->ativo = 0;
+                    if (temp->tipo > 10000) {
+                        jogadorPerdeu(*it2, c);
+                    } else if (temp->tipo == 7) {
+                        largarItem(ob, *it2, c);
+                    }
 
                     pthread_mutex_lock(&bloqueiaBomba);
                     EnviaNovopTodos(*temp, c);
@@ -1472,18 +1524,50 @@ void verificaColisao(Objecto *bomba, Objecto *ob, Cliente *c) {
     }
 }
 
-void ApanhaBomba(int id, Objecto *ObjectoBomba, Objecto *lob, Cliente *c) {
+void ApanhaItem(int id, Objecto *ObjectoLargado, Objecto *lob, Cliente *c) {
     Objecto *ant;
     Objecto *ito;
     Cliente *it = c;
+    int contador = 0;
 
     while (it != NULL) {
         if (it->PID == id - 10000) {
-            if (ObjectoBomba->tipo == 8) {
+            if (ObjectoLargado->tipo == 8) {
                 it->nBomba++;
             } else {
-                if (ObjectoBomba->tipo == 9) {
+                if (ObjectoLargado->tipo == 9) {
                     it->nMegaBomba++;
+                } else if (ObjectoLargado->tipo == 11) {
+                    it->pontos += 10;
+                } else if (ObjectoLargado->tipo == 10) {
+                    ito = lob;
+                    while (ito != NULL) {
+                        if (ito->tipo >= 8 && ito->tipo <= 9) {
+                            switch (ito->tipo) {
+                                case 8:
+                                    it->nBomba++;
+                                    break;
+                                case 9:
+                                    it->nMegaBomba++;
+                                    break;
+                                case 10:
+                                    ///COLETOS AUTOMATICO
+                                    break;
+                                case 11:
+                                    it->pontos += 10;
+                                    break;
+                            }
+                            contador++;
+                            ito->ativo = 0;
+                            pthread_mutex_lock(&bloqueiaBomba);
+                            EnviaNovopTodos(*(ito), c);
+                            pthread_mutex_unlock(&bloqueiaBomba);
+                        }
+                        if (contador == 5) {
+                            break;
+                        }
+                        ito = ito->p;
+                    }
                 }
             }
             break;
@@ -1494,10 +1578,10 @@ void ApanhaBomba(int id, Objecto *ObjectoBomba, Objecto *lob, Cliente *c) {
     ito = lob;
 
     while (ito != NULL) {
-        if (ito->id == ObjectoBomba->id) {
-            ObjectoBomba->ativo = 0;
+        if (ito->id == ObjectoLargado->id) {
+            ObjectoLargado->ativo = 0;
             pthread_mutex_lock(&bloqueiaBomba);
-            EnviaNovopTodos(*(ObjectoBomba), c);
+            EnviaNovopTodos(*(ObjectoLargado), c);
             pthread_mutex_unlock(&bloqueiaBomba);
             ant->p = ito->p;
             free(ito);
@@ -1510,5 +1594,77 @@ void ApanhaBomba(int id, Objecto *ObjectoBomba, Objecto *lob, Cliente *c) {
 
 
 
+
+}
+
+void jogadorPerdeu(Objecto jogador, Cliente *c) {
+    Objecto perdeu;
+    Cliente *it;
+    char str[30];
+    int fd;
+    sprintf(str, "../JJJ%d", jogador.tipo - 10000);
+
+    perdeu.tipo = -2;
+
+
+    while (it != NULL) {
+        if (it->PID == jogador.tipo - 10000) {
+            it->Ajogar = 0;
+            break;
+        }
+        it = it->p;
+    }
+
+    fd = open(str, O_WRONLY);
+
+    if (fd == -1) {
+        printf("<ERRO> Nao foi possivel abrir o FIFO <%s>\n", str);
+        fflush(stdout);
+    } else {
+        printf("ENVIA -->Jogador: %d perdeu\n", jogador.tipo - 10000);
+        fflush(stdout);
+        write(fd, &perdeu, sizeof (perdeu));
+        close(fd);
+    }
+
+
+}
+
+void largarItem(Objecto *ob, Objecto it2, Cliente *c) {
+    Objecto *it, *novo;
+    Objecto temp;
+    int probabilidade = rand() % 101;
+
+    srand(time(NULL));
+
+    if (probabilidade > 0 && 10 <= probabilidade) {
+        temp.tipo = 8;
+    } else if (probabilidade > 10 && 35 <= probabilidade) {
+        temp.tipo = 9;
+    } else if (probabilidade > 35 && 55 <= probabilidade) {
+        temp.tipo = 10;
+    } else if (probabilidade > 55) {
+        temp.tipo = 11;
+    }
+    temp.tipo == 10;
+    it = ob;
+
+    while (it->p != NULL) {
+        it = it->p;
+    }
+
+    novo = (Objecto*) malloc(sizeof (Objecto));
+    it->p = novo;
+
+    id++;
+    novo->id = id;
+    novo->tipo = 10;
+    novo->explosao = NULL;
+    novo->x = it2.x;
+    novo->y = it2.y;
+
+    pthread_mutex_lock(&bloqueiaBomba);
+    EnviaNovopTodos(*(novo), c);
+    pthread_mutex_unlock(&bloqueiaBomba);
 
 }

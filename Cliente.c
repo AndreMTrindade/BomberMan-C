@@ -266,7 +266,19 @@ void* AtualizaEcra(void *dados) {
                     fflush(stdout);
                     sleep(2);
                     pthread_exit(0);
+                } else {
+                    if (b.tipo == -2) {
+                        clear();
+                        delwin(x->mainwin);
+                        endwin();
+                        refresh();
+                        printf("Perdeu!\n");
+                        fflush(stdout);
+                        sleep(2);
+                        pthread_exit(0);
+                    }
                 }
+
             }
             existe = 0;
             while (it != NULL) {
@@ -312,39 +324,60 @@ void* AtualizaEcra(void *dados) {
 ///IMPRIME NO ECRA OS OBJECTOSd
 
 void Imprime(Objecto *ob) {
-  clear;
+    int contador = 0;
     Objecto *it;
     it = ob;
     clear();
 
-    init_pair(1, COLOR_BLACK, COLOR_RED);
-    init_pair(2, COLOR_GREEN, COLOR_GREEN);
-    init_pair(3, COLOR_WHITE, COLOR_BLACK);
-    init_pair(4, COLOR_YELLOW, COLOR_YELLOW);
-    init_pair(5, COLOR_WHITE, COLOR_WHITE);
+    init_pair(1, COLOR_GREEN, COLOR_GREEN);
+    init_pair(2, COLOR_WHITE, COLOR_WHITE);
+    init_pair(3, COLOR_BLACK, COLOR_RED);
+    init_pair(5, COLOR_YELLOW, COLOR_YELLOW);
     init_pair(6, COLOR_BLUE, COLOR_BLUE);
     init_pair(7, COLOR_RED, COLOR_BLACK);
     init_pair(8, COLOR_BLACK, COLOR_YELLOW);
 
+    init_pair(9, COLOR_WHITE, COLOR_BLACK);
+    init_pair(10, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(11, COLOR_RED, COLOR_BLACK);
+    init_pair(12, COLOR_CYAN, COLOR_BLACK);
+    init_pair(13, COLOR_MAGENTA, COLOR_BLACK);
+    init_pair(14, COLOR_BLUE, COLOR_BLACK);
+
     while (it != NULL) {
         if (it->tipo == 1) {
-            attron(COLOR_PAIR(2));
+            attron(COLOR_PAIR(1));
             mvprintw(it->y, it->x, "0");
         } else {
             if (it->tipo > 1000) {
-                attron(COLOR_PAIR(3));
+                contador++;
+                switch(contador) {
+                    case 1: attron(COLOR_PAIR(9));
+                            break;
+                    case 2: attron(COLOR_PAIR(10));
+                            break;
+                    case 3: attron(COLOR_PAIR(11));
+                            break;
+                    case 4: attron(COLOR_PAIR(12));
+                            break;
+                    case 5: attron(COLOR_PAIR(13));
+                            break;
+                    case 6: attron(COLOR_PAIR(14));
+                            break;
+                        
+                }
                 mvprintw(it->y, it->x, "P");
             } else if (it->tipo == 2) {
-                attron(COLOR_PAIR(5));
+                attron(COLOR_PAIR(2));
                 mvprintw(it->y, it->x, "O");
             } else if (it->tipo == 3) {
-                attron(COLOR_PAIR(1));
+                attron(COLOR_PAIR(3));
                 mvprintw(it->y, it->x, "x");
             } else if (it->tipo == 4) {
-                attron(COLOR_PAIR(1));
+                attron(COLOR_PAIR(3));
                 mvprintw(it->y, it->x, "X");
             } else if (it->tipo == 5) {
-                attron(COLOR_PAIR(4));
+                attron(COLOR_PAIR(5));
                 mvprintw(it->y, it->x, "i");
             } else if (it->tipo == 6) {
                 attron(COLOR_PAIR(6));
@@ -358,6 +391,12 @@ void Imprime(Objecto *ob) {
             } else if (it->tipo == 9) {
                 attron(COLOR_PAIR(8));
                 mvprintw(it->y, it->x, "X");
+            } else if (it->tipo == 10) {
+                attron(COLOR_PAIR(8));
+                mvprintw(it->y, it->x, "C");
+            } else if (it->tipo == 11) {
+                attron(COLOR_PAIR(8));
+                mvprintw(it->y, it->x, "E");
             }
         }
         it = it->p;
