@@ -78,8 +78,10 @@ void ApanhaItem(int id, Objecto *ObjectoLargado, Objecto *lob, Cliente *c);
 void jogadorPerdeu(Objecto jogador, Cliente *c);
 void largarItem(Objecto *ob, Objecto it2, Cliente *c);
 void ColocaPantano(Objecto *novo, Objecto *objectos);
+void *VerificaMorte(void *dados);
 
 pthread_mutex_t bloqueiaBomba;
+pthread_mutex_t bloqueiaLista;
 
 int main(int argc, char** argv) {
     Cliente *clientes = LeClientes();
@@ -726,6 +728,11 @@ void *CorpoJogo(void *dados) {
         fflush(stdout);
         pthread_exit(0);
     }
+    if (pthread_mutex_init(&bloqueiaLista, NULL) != 0) {
+        printf("\n mutex init failed\n");
+        fflush(stdout);
+        pthread_exit(0);
+    }
 
 
     pthread_create(&recebe, NULL, &MoveInimigo, (void *) x);
@@ -735,7 +742,9 @@ void *CorpoJogo(void *dados) {
         if (i == sizeof (j)) {
             printf("RECEBEU Tecla: %c\n", j.ascii);
             fflush(stdout);
+            pthread_mutex_lock(&bloqueiaLista);
             TrataAccao(x->objectos, j, x->clientes);
+            pthread_mutex_unlock(&bloqueiaLista);
         }
     }
     pthread_exit(0);
@@ -1168,11 +1177,11 @@ void *MoveInimigo(void *dados) {
             }
             it = it->p;
         }
+
     }
 }
 
 ///KICKA O JOGADOR DO JOGO
-
 void KickPlayer(Palavra *p, Cliente *c) {
     Cliente *it;
 
@@ -1240,17 +1249,21 @@ void EnviaNovopTodos(Objecto novo, Cliente *c) {
 void *TrataBomba(void *dados) {
     PassaThreadBomba *x = (PassaThreadBomba*) dados;
     int periodo = 0;
+    pthread_mutex_lock(&bloqueiaLista);
     Objecto *it = x->objectos;
     Objecto *ant;
+    pthread_t envia;
 
     x->bomba->tipo = 3;
     x->bomba->ativo = 1;
     pthread_mutex_lock(&bloqueiaBomba);
     EnviaNovopTodos(*(x->bomba), x->clientes);
     pthread_mutex_unlock(&bloqueiaBomba);
+    pthread_mutex_unlock(&bloqueiaLista);
 
     sleep(2);
 
+    pthread_mutex_lock(&bloqueiaLista);
     x->bomba->ativo = 0;
     pthread_mutex_lock(&bloqueiaBomba);
     EnviaNovopTodos(*(x->bomba), x->clientes);
@@ -1268,9 +1281,14 @@ void *TrataBomba(void *dados) {
             it = it->p;
         }
     }
-
+    pthread_mutex_unlock(&bloqueiaLista);
+    x->bomba->ativo = 1;
+    pthread_create(&envia, NULL, &VerificaMorte, (void *) x);
     sleep(2);
-    verificaColisao(x->bomba, x->objectos, x->clientes);
+    x->bomba->ativo = 0;
+
+    pthread_mutex_lock(&bloqueiaLista);
+
 
     it = x->bomba->explosao;
     if (x->bomba->explosao != NULL) {
@@ -1296,7 +1314,7 @@ void *TrataBomba(void *dados) {
         it = it->p;
     }
 
-
+    pthread_mutex_unlock(&bloqueiaLista);
     pthread_exit(0);
 }
 
@@ -1367,6 +1385,7 @@ void *TrataMegaBomba(void *dados) {
     int periodo = 0;
     Objecto *it = x->objectos;
     Objecto *ant;
+    pthread_t envia;
 
     x->bomba->tipo = 4;
     x->bomba->ativo = 1;
@@ -1393,9 +1412,11 @@ void *TrataMegaBomba(void *dados) {
             it = it->p;
         }
     }
-
+    x->bomba->ativo = 1;
+    pthread_create(&envia, NULL, &VerificaMorte, (void *) x);
     sleep(2);
-    verificaColisao(x->bomba, x->objectos, x->clientes);
+    x->bomba->ativo = 0;
+
 
     it = x->bomba->explosao;
     if (x->bomba->explosao != NULL) {
@@ -1677,4 +1698,12 @@ void largarItem(Objecto *ob, Objecto it2, Cliente *c) {
     EnviaNovopTodos(*(novo), c);
     pthread_mutex_unlock(&bloqueiaBomba);
 
+}
+
+void *VerificaMorte(void *dados) {
+    PassaThreadBomba *x = (PassaThreadBomba*) dados;
+
+    while (x->bomba->ativo != 0) {
+        verificaColisao(x->bomba, x->objectos, x->clientes);
+    }
 }
