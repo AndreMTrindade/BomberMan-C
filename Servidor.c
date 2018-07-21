@@ -153,6 +153,7 @@ Cliente* Shell(Cliente *clientes) {
         if (op == -2) {
             Sair = 1;
             unlink(FIFOLOGIN);
+            pthread_mutex_destroy(&bloqueiaBomba);
             return clientes;
         }
     }
@@ -441,7 +442,7 @@ void *RecebeJogadores(void *dados) {
 
     mkfifo(FIFOLOGIN, 0600);
 
-    fd = open(FIFOLOGIN, O_RDWR);
+    fd = open(FIFOLOGIN, O_RDONLY);
 
     while (*Sair == 0) {
 
@@ -460,7 +461,7 @@ void *RecebeJogadores(void *dados) {
                 res = VerificaCliente(Clientes, c);
                 write(fd_resp, &res, sizeof (res));
                 close(fd_resp);
-                if (Conta(Clientes) == 2) {//ALTERAR
+                if (Conta(Clientes) == 1) {//ALTERAR
                     printf("\nLimite de Clientes atingido\n");
                     fflush(stdout);
                     close(fd);
@@ -720,11 +721,20 @@ void *CorpoJogo(void *dados) {
         pthread_exit(0);
     }
 
+    if (pthread_mutex_init(&bloqueiaBomba, NULL) != 0) {
+        printf("\n mutex init failed\n");
+        fflush(stdout);
+        pthread_exit(0);
+    }
+
+
     pthread_create(&recebe, NULL, &MoveInimigo, (void *) x);
 
     while (*(x->Sair) == 0) {
         i = read(fd, &j, sizeof (j));
         if (i == sizeof (j)) {
+            printf("RECEBEU Tecla: %c\n", j.ascii);
+            fflush(stdout);
             TrataAccao(x->objectos, j, x->clientes);
         }
     }
@@ -1016,7 +1026,7 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
         novo->p = NULL;
         ult = novo;
     }
-    
+
     nMaxPantano = 5 + (rand() % 10);
 
     for (i = 0; i < nMaxPantano; i++) {
@@ -1054,11 +1064,11 @@ void ColocaPantano(Objecto *novo, Objecto *objectos) {
         if (sair == 1) {
             novo->x = x;
             novo->y = y;
-            
+
             break;
         } else
             y = rand() % 20;
-            x = rand() % 30;
+        x = rand() % 30;
     } while (sair == 0);
 }
 
@@ -1198,7 +1208,7 @@ void EnviaNovopTodos(Objecto novo, Cliente *c) {
                 fflush(stdout);
                 //   break;
             } else {
-                printf("ENVIA --> ID: %d TIPO: %d  X: %d Y: %d E: %d\n", novo.id, novo.tipo, novo.x, novo.y, novo.ativo);
+                //  printf("ENVIA --> ID: %d TIPO: %d  X: %d Y: %d E: %d\n", novo.id, novo.tipo, novo.x, novo.y, novo.ativo);
                 fflush(stdout);
                 write(fd, &novo, sizeof (novo));
                 close(fd);
@@ -1259,7 +1269,7 @@ void *TrataBomba(void *dados) {
         }
     }
 
-    sleep(1.5);
+    sleep(2);
     verificaColisao(x->bomba, x->objectos, x->clientes);
 
     it = x->bomba->explosao;
@@ -1364,7 +1374,7 @@ void *TrataMegaBomba(void *dados) {
     EnviaNovopTodos(*(x->bomba), x->clientes);
     pthread_mutex_unlock(&bloqueiaBomba);
 
-    sleep(3);
+    sleep(2);
 
     x->bomba->ativo = 0;
     pthread_mutex_lock(&bloqueiaBomba);
@@ -1384,7 +1394,7 @@ void *TrataMegaBomba(void *dados) {
         }
     }
 
-    sleep(1.5);
+    sleep(2);
     verificaColisao(x->bomba, x->objectos, x->clientes);
 
     it = x->bomba->explosao;
