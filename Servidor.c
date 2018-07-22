@@ -28,6 +28,12 @@ typedef struct {
     int* Sair;
 } PassarThreadJogo;
 
+typedef struct {
+    Cliente *clientes;
+    Objecto *jogador;
+    Objecto *pantano;
+} PassarThreadPantano;
+
 typedef struct Jogada {
     char ascii;
     int PID;
@@ -79,6 +85,7 @@ void jogadorPerdeu(Objecto jogador, Cliente *c);
 void largarItem(Objecto *ob, Objecto it2, Cliente *c);
 void ColocaPantano(Objecto *novo, Objecto *objectos);
 void *VerificaMorte(void *dados);
+void *VerificaPantano(void *dados);
 void LimpaObjectos(Objecto * ob);
 
 pthread_mutex_t bloqueiaBomba;
@@ -464,7 +471,7 @@ void *RecebeJogadores(void *dados) {
                 res = VerificaCliente(Clientes, c);
                 write(fd_resp, &res, sizeof (res));
                 close(fd_resp);
-                if (Conta(Clientes) == 2) {//ALTERAR
+                if (Conta(Clientes) == 1) {//ALTERAR
                     printf("\nLimite de Clientes atingido\n");
                     fflush(stdout);
                     close(fd);
@@ -886,7 +893,9 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
 
     Objecto *it = lob;
     Cliente *itc;
+    PassarThreadPantano *pantano;
     int conta = 0;
+    pthread_t envia;
 
     if (tecla == 1) {
         int y = ob->y - 1;
@@ -900,6 +909,14 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
                         if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
                             if (it->tipo == 8 || it->tipo == 9 || it->tipo == 10 || it->tipo == 11) {
                                 ApanhaItem(ob->tipo, it, lob, c);
+                            } else {
+                                if (it->tipo == 6) {
+                                    pantano = (PassarThreadPantano*) malloc(sizeof (PassarThreadPantano));
+                                    pantano->clientes = c;
+                                    pantano->jogador = ob;
+                                    pantano->pantano = it;
+                                    pthread_create(&envia, NULL, &VerificaPantano, (void *) pantano);
+                                }
                             }
                             ob->y = y;
                         }
@@ -924,6 +941,14 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
                             if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
                                 if (it->tipo == 8 || it->tipo == 9 || it->tipo == 10 || it->tipo == 11) {
                                     ApanhaItem(ob->tipo, it, lob, c);
+                                } else {
+                                    if (it->tipo == 6) {
+                                        pantano = (PassarThreadPantano*) malloc(sizeof (PassarThreadPantano));
+                                        pantano->clientes = c;
+                                        pantano->jogador = ob;
+                                        pantano->pantano = it;
+                                        pthread_create(&envia, NULL, &VerificaPantano, (void *) pantano);
+                                    }
                                 }
                                 ob->y = y;
                             }
@@ -948,6 +973,14 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
                                 if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
                                     if (it->tipo == 8 || it->tipo == 9 || it->tipo == 10 || it->tipo == 11) {
                                         ApanhaItem(ob->tipo, it, lob, c);
+                                    } else {
+                                        if (it->tipo == 6) {
+                                            pantano = (PassarThreadPantano*) malloc(sizeof (PassarThreadPantano));
+                                            pantano->clientes = c;
+                                            pantano->jogador = ob;
+                                            pantano->pantano = it;
+                                            pthread_create(&envia, NULL, &VerificaPantano, (void *) pantano);
+                                        }
                                     }
                                     ob->x = x;
                                 }
@@ -971,6 +1004,14 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
                                     if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
                                         if (it->tipo == 8 || it->tipo == 9 || it->tipo == 10 || it->tipo == 11) {
                                             ApanhaItem(ob->tipo, it, lob, c);
+                                        } else {
+                                            if (it->tipo == 6) {
+                                                pantano = (PassarThreadPantano*) malloc(sizeof (PassarThreadPantano));
+                                                pantano->clientes = c;
+                                                pantano->jogador = ob;
+                                                pantano->pantano = it;
+                                                pthread_create(&envia, NULL, &VerificaPantano, (void *) pantano);
+                                            }
                                         }
                                         ob->x = x;
                                     }
@@ -1287,7 +1328,7 @@ void *TrataBomba(void *dados) {
     EnviaNovopTodos(*(x->bomba), x->clientes);
     pthread_mutex_unlock(&bloqueiaBomba);
     pthread_mutex_unlock(&bloqueiaLista);
-    
+
     sleep(2);
 
     pthread_mutex_lock(&bloqueiaLista);
@@ -1314,7 +1355,7 @@ void *TrataBomba(void *dados) {
     pthread_create(&envia, NULL, &VerificaMorte, (void *) x);
     pthread_mutex_unlock(&bloqueiaLista);
     sleep(2);
-    
+
     pthread_mutex_lock(&bloqueiaLista);
     x->bomba->ativo = 0;
 
@@ -1734,7 +1775,7 @@ void largarItem(Objecto *ob, Objecto it2, Cliente * c) {
     id++;
     novo->id = id;
     novo->tipo = temp;
-    novo->ativo = 0;
+    novo->ativo = 1;
     novo->explosao = NULL;
     novo->x = it2.x;
     novo->y = it2.y;
@@ -1768,4 +1809,20 @@ void LimpaObjectos(Objecto * ob) {
         it = it->p;
     }
 
+}
+
+void *VerificaPantano(void *dados) {
+    PassarThreadPantano *x = (PassarThreadPantano*) dados;
+    int i;
+
+    for (i = 0; i < 3; i++) {
+        if (x->jogador->x != x->pantano->x || x->jogador->y != x->pantano->y) {
+            pthread_exit(0);
+        }
+        sleep(1);
+    }
+    if (x->jogador->x == x->pantano->x && x->jogador->y == x->pantano->y) {
+        jogadorPerdeu(*x->jogador, x->clientes);
+    }
+    pthread_exit(0);
 }
