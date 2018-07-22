@@ -464,7 +464,7 @@ void *RecebeJogadores(void *dados) {
                 res = VerificaCliente(Clientes, c);
                 write(fd_resp, &res, sizeof (res));
                 close(fd_resp);
-                if (Conta(Clientes) == 1) {//ALTERAR
+                if (Conta(Clientes) == 2) {//ALTERAR
                     printf("\nLimite de Clientes atingido\n");
                     fflush(stdout);
                     close(fd);
@@ -741,7 +741,9 @@ void *CorpoJogo(void *dados) {
     while (*(x->Sair) == 0) {
         i = read(fd, &j, sizeof (j));
         if (i == sizeof (j)) {
+            pthread_mutex_lock(&bloqueiaLista);
             TrataAccao(x->objectos, j, x->clientes);
+            pthread_mutex_unlock(&bloqueiaLista);
         }
         //LimpaObjectos(x->objectos);
     }
@@ -766,7 +768,6 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 
     while (it != NULL) {
         if (it->tipo == j.PID) {
-            pthread_mutex_lock(&bloqueiaLista);
             tecla = j.ascii;
             if (toupper(tecla) == 'W' || tecla == 30) {
                 novo = VerificaMovimento(1, b, it, c);
@@ -873,7 +874,6 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
                     }
                 }
             }
-            pthread_mutex_unlock(&bloqueiaLista);
             break;
         }
         it = it->p;
@@ -1275,6 +1275,8 @@ void EnviaNovopTodos(Objecto novo, Cliente *c) {
 }
 
 void *TrataBomba(void *dados) {
+
+    pthread_mutex_lock(&bloqueiaLista);
     PassaThreadBomba *x = (PassaThreadBomba*) dados;
     int periodo = 0;
 
@@ -1284,9 +1286,11 @@ void *TrataBomba(void *dados) {
     pthread_mutex_lock(&bloqueiaBomba);
     EnviaNovopTodos(*(x->bomba), x->clientes);
     pthread_mutex_unlock(&bloqueiaBomba);
-
+    pthread_mutex_unlock(&bloqueiaLista);
+    
     sleep(2);
 
+    pthread_mutex_lock(&bloqueiaLista);
     it = x->objectos;
     x->bomba->ativo = 0;
     pthread_mutex_lock(&bloqueiaBomba);
@@ -1308,7 +1312,10 @@ void *TrataBomba(void *dados) {
 
     x->bomba->ativo = 1;
     pthread_create(&envia, NULL, &VerificaMorte, (void *) x);
+    pthread_mutex_unlock(&bloqueiaLista);
     sleep(2);
+    
+    pthread_mutex_lock(&bloqueiaLista);
     x->bomba->ativo = 0;
 
     it = x->bomba->explosao;
@@ -1334,6 +1341,7 @@ void *TrataBomba(void *dados) {
         ant = it;
         it = it->p;
     }
+    pthread_mutex_unlock(&bloqueiaLista);
 
     pthread_exit(0);
 
