@@ -47,6 +47,7 @@ typedef struct PassaThreadBomba {
 
 
 static int id = 0;
+int maxElementos = 0;
 
 Cliente* Shell(Cliente *clientes);
 Palavra* DevolvePalavras(char* frase);
@@ -601,6 +602,7 @@ Objecto* LeLabirinto() {
             y++;
         } else {
             if (c == '1') {
+                maxElementos++;
                 if (ob == NULL) {
                     ob = (Objecto*) malloc(sizeof (Objecto));
                     ob->ativo = 1;
@@ -622,6 +624,7 @@ Objecto* LeLabirinto() {
                 }
             } else {
                 if (c == '0') {
+                    maxElementos++;
                     if (ob == NULL) {
                         ob = (Objecto*) malloc(sizeof (Objecto));
                         ob->ativo = 1;
@@ -643,6 +646,7 @@ Objecto* LeLabirinto() {
                     }
                 } else {
                     if (c == 'o') {
+                        maxElementos++;
                         if (ob == NULL) {
                             ob = (Objecto*) malloc(sizeof (Objecto));
                             ob->ativo = 1;
@@ -664,6 +668,7 @@ Objecto* LeLabirinto() {
                         }
                     } else {
                         if (c == 'O') {
+                            maxElementos++;
                             if (ob == NULL) {
                                 ob = (Objecto*) malloc(sizeof (Objecto));
                                 ob->ativo = 1;
@@ -743,11 +748,15 @@ void *CorpoJogo(void *dados) {
         pthread_exit(0);
     }
 
-    pthread_create(&recebe, NULL, &MoveInimigo, (void *) x);
+    // pthread_create(&recebe, NULL, &MoveInimigo, (void *) x);
 
     while (*(x->Sair) == 0) {
+        printf("A espera\n");
+        fflush(stdout);
         i = read(fd, &j, sizeof (j));
         if (i == sizeof (j)) {
+            printf("\n\n Max: %d\nRecebeu: %d\n\n", maxElementos, j.ascii);
+            fflush(stdout);
             pthread_mutex_lock(&bloqueiaLista);
             TrataAccao(x->objectos, j, x->clientes);
             pthread_mutex_unlock(&bloqueiaLista);
@@ -765,7 +774,7 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
     Objecto novo, *novaBomba;
     Cliente *itc = c;
     char tecla;
-    int fd;
+    int fd, erro = 0, erro2 = 0;
     char str[50];
     pthread_t envia;
     PassaThreadBomba *x = (PassaThreadBomba*) malloc(sizeof ( PassaThreadBomba));
@@ -774,10 +783,22 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
     x->objectos = b;
 
     while (it != NULL) {
+        erro++;
+        if (erro == 500) {
+            it = b;
+            for (int i = 0; i < maxElementos; i++) {
+                printf("ID: %d - %d\n", it->id, it->tipo);
+                fflush(stdout);
+                it = it->p;
+            }
+            it->p = NULL;
+        }
         if (it->tipo == j.PID) {
             tecla = j.ascii;
             if (toupper(tecla) == 'W' || tecla == 30) {
                 novo = VerificaMovimento(1, b, it, c);
+                printf("Fez Verifica Movimento\n");
+                fflush(stdout);
                 if (novo.y != (it->y - 1)) {
                     pthread_mutex_lock(&bloqueiaBomba);
                     EnviaNovopTodos(novo, c);
@@ -787,6 +808,8 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
             } else {
                 if (toupper(tecla) == 'S' || tecla == 31) {
                     novo = VerificaMovimento(2, b, it, c);
+                    printf("Fez Verifica Movimento\n");
+                    fflush(stdout);
                     if (novo.y != (it->y + 1)) {
                         pthread_mutex_lock(&bloqueiaBomba);
                         EnviaNovopTodos(novo, c);
@@ -796,6 +819,8 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
                 } else {
                     if (toupper(tecla) == 'D' || tecla == 16) {
                         novo = VerificaMovimento(3, b, it, c);
+                        printf("Fez Verifica Movimento\n");
+                        fflush(stdout);
 
                         if (novo.x != (it->x + 1)) {
                             pthread_mutex_lock(&bloqueiaBomba);
@@ -806,7 +831,8 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
                     } else {
                         if (toupper(tecla) == 'A' || tecla == 17) {
                             novo = VerificaMovimento(4, b, it, c);
-
+                            printf("Fez Verifica Movimento\n");
+                            fflush(stdout);
                             if (novo.x != (it->x - 1)) {
                                 pthread_mutex_lock(&bloqueiaBomba);
                                 EnviaNovopTodos(novo, c);
@@ -830,6 +856,8 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 
                                 it2 = b;
                                 while (it2->p != NULL) {
+                                    printf("Deu MErda\n");
+                                    fflush(stdout);
                                     it2 = it2->p;
                                 }
                                 novaBomba = (Objecto*) malloc(sizeof (Objecto));
@@ -861,6 +889,8 @@ void TrataAccao(Objecto *b, Jogada j, Cliente *c) {
 
                                     it2 = b;
                                     while (it2->p != NULL) {
+                                        printf("Deu MErda\n");
+                                        fflush(stdout);
                                         it2 = it2->p;
                                     }
 
@@ -894,7 +924,7 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
     Objecto *it = lob;
     Cliente *itc;
     PassarThreadPantano *pantano;
-    int conta = 0;
+    int conta = 0, erro = 0;
     pthread_t envia;
 
     if (tecla == 1) {
@@ -903,7 +933,19 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
         if (y <= 0) {
             return *ob;
         } else {
+            erro = 0;
             while (it != NULL) {
+                printf("Ciclo\n");
+                fflush(stdout);
+                erro++;
+                if (erro == 500) {
+                    it = lob;
+                    for (int i = 0; i < maxElementos; i++) {
+                        it = it->p;
+                    }
+                    it->p = NULL;
+                    break;
+                }
                 if (it->ativo != 0)
                     if (ob->id != it->id && it->y == y && it->x == ob->x) {
                         if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
@@ -935,7 +977,19 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
             if (y >= 20) {
                 return *ob;
             } else {
+                erro++;
                 while (it != NULL) {
+                    printf("Ciclo\n");
+                    fflush(stdout);
+                    erro++;
+                    if (erro == 500) {
+                        it = lob;
+                        for (int i = 0; i < maxElementos; i++) {
+                            it = it->p;
+                        }
+                        it->p = NULL;
+                        break;
+                    }
                     if (it->ativo != 0)
                         if (ob->id != it->id && it->y == y && it->x == ob->x) {
                             if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
@@ -966,8 +1020,19 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
                 if (x >= 30) {
                     return *ob;
                 } else {
-
+                    erro = 0;
                     while (it != NULL) {
+                        printf("Ciclo\n");
+                        fflush(stdout);
+                        erro++;
+                        if (erro == 500) {
+                            it = lob;
+                            for (int i = 0; i < maxElementos; i++) {
+                                it = it->p;
+                            }
+                            it->p = NULL;
+                            break;
+                        }
                         if (it->ativo != 0)
                             if (ob->id != it->id && it->y == ob->y && it->x == x) {
                                 if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
@@ -998,7 +1063,19 @@ Objecto VerificaMovimento(int tecla, Objecto *lob, Objecto *ob, Cliente *c) {
                     if (x <= 0) {
                         return *ob;
                     } else {
+                        erro = 0;
                         while (it != NULL) {
+                            printf("Ciclo\n");
+                            fflush(stdout);
+                            erro++;
+                            if (erro == 500) {
+                                it = lob;
+                                for (int i = 0; i < maxElementos; i++) {
+                                    it = it->p;
+                                }
+                                it->p = NULL;
+                                break;
+                            }
                             if (it->ativo != 0)
                                 if (ob->id != it->id && it->y == ob->y && it->x == x) {
                                     if ((it->tipo == 6 || it->tipo == 8 || it->tipo == 9 || it->tipo == 5 || it->tipo == 10 || it->tipo == 11) && ob->tipo > 10000) {
@@ -1056,12 +1133,13 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
             novo->ativo = 1;
             novo->tipo = it->PID + 10000;
             it->pontos = 0;
-            it->nMegaBomba = 2;
-            it->nBomba = 3;
+            it->nMegaBomba = 10;
+            it->nBomba = 10;
             ColocaJogador(novo, bjectos);
             ult->p = novo;
             novo->p = NULL;
             ult = novo;
+            maxElementos++;
         }
         it = it->p;
     }
@@ -1081,6 +1159,7 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
         ult->p = novo;
         novo->p = NULL;
         ult = novo;
+        maxElementos++;
     }
 
     nMaxPantano = 5 + (rand() % 10);
@@ -1095,6 +1174,7 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
         ult->p = novo;
         novo->p = NULL;
         ult = novo;
+        maxElementos++;
     }
 
     it = clientes;
@@ -1111,6 +1191,7 @@ void CriarPerso(Cliente *clientes, Objecto *bjectos) {
             ult->p = novo;
             novo->p = NULL;
             ult = novo;
+            maxElementos++;
         }
         it = it->p;
     }
@@ -1592,6 +1673,7 @@ void verificaColisao(Objecto *bomba, Objecto *ob, Cliente * c) {
         while (it2 != NULL) {
             if (it2->tipo == 2 || it2->tipo == 6 || it2->tipo == 7 || it2->tipo > 10000) {
                 if (it2->x == it->x && it2->y == it->y) {
+                    maxElementos--;
                     temp = it2;
                     temp->ativo = 0;
                     if (temp->tipo > 10000) {
@@ -1633,12 +1715,15 @@ void ApanhaItem(int id, Objecto *ObjectoLargado, Objecto *lob, Cliente * c) {
             if (ObjectoLargado->tipo == 8) {
                 it->nBomba++;
                 it->pontos++;
+                maxElementos--;
             } else {
                 if (ObjectoLargado->tipo == 9) {
                     it->nMegaBomba++;
                     it->pontos++;
+                    maxElementos--;
                 } else if (ObjectoLargado->tipo == 11) {
                     it->pontos += 10;
+                    maxElementos--;
                 } else if (ObjectoLargado->tipo == 10) {
                     ito = lob;
                     while (ito != NULL) {
@@ -1647,17 +1732,21 @@ void ApanhaItem(int id, Objecto *ObjectoLargado, Objecto *lob, Cliente * c) {
                                 case 8:
                                     it->nBomba++;
                                     it->pontos++;
+                                    maxElementos--;
                                     break;
                                 case 9:
                                     it->nMegaBomba++;
                                     it->pontos++;
+                                    maxElementos--;
                                     break;
                                 case 10:
                                     ///COLETOS AUTOMATICO
                                     it->pontos++;
+                                    maxElementos--;
                                     break;
                                 case 11:
                                     it->pontos += 10;
+                                    maxElementos--;
                                     break;
                             }
                             contador++;
@@ -1669,6 +1758,7 @@ void ApanhaItem(int id, Objecto *ObjectoLargado, Objecto *lob, Cliente * c) {
                         if (contador == 5) {
                             break;
                         }
+                        maxElementos--;
                         ito = ito->p;
                     }
                 }
@@ -1779,6 +1869,7 @@ void largarItem(Objecto *ob, Objecto it2, Cliente * c) {
     novo->explosao = NULL;
     novo->x = it2.x;
     novo->y = it2.y;
+    maxElementos++;
 
     pthread_mutex_lock(&bloqueiaBomba);
     EnviaNovopTodos(*(novo), c);

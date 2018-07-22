@@ -248,7 +248,6 @@ void* AtualizaEcra(void *dados) {
     while (*(x->Sair) == 0) {
         i = read(fd, &b, sizeof (b));
         if (i == sizeof (b)) {
-
             it = x->ob;
             if (b.id == -5) {
                 endwin();
