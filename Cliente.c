@@ -343,6 +343,7 @@ void Imprime(Objecto *ob) {
     init_pair(12, COLOR_CYAN, COLOR_BLACK);
     init_pair(13, COLOR_MAGENTA, COLOR_BLACK);
     init_pair(14, COLOR_BLUE, COLOR_BLACK);
+    init_pair(15, COLOR_WHITE, COLOR_BLACK);
 
     while (it != NULL) {
         if (it->tipo == 1) {
@@ -351,20 +352,20 @@ void Imprime(Objecto *ob) {
         } else {
             if (it->tipo > 1000) {
                 contador++;
-                switch(contador) {
+                switch (contador) {
                     case 1: attron(COLOR_PAIR(9));
-                            break;
+                        break;
                     case 2: attron(COLOR_PAIR(10));
-                            break;
+                        break;
                     case 3: attron(COLOR_PAIR(11));
-                            break;
+                        break;
                     case 4: attron(COLOR_PAIR(12));
-                            break;
+                        break;
                     case 5: attron(COLOR_PAIR(13));
-                            break;
+                        break;
                     case 6: attron(COLOR_PAIR(14));
-                            break;
-                        
+                        break;
+
                 }
                 mvprintw(it->y, it->x, "P");
             } else if (it->tipo == 2) {
@@ -397,6 +398,11 @@ void Imprime(Objecto *ob) {
             } else if (it->tipo == 11) {
                 attron(COLOR_PAIR(8));
                 mvprintw(it->y, it->x, "E");
+            } else if (it->tipo == 12) {
+                if (it->y == getpid()) {
+                    attron(COLOR_PAIR(15));
+                    mvprintw(2, 40, "Ponto: %d", it->x);
+                }
             }
         }
         it = it->p;

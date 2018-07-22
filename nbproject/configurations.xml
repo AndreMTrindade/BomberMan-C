@@ -43,7 +43,7 @@
           <commandLine>-lpthread -lncurses</commandLine>
         </linkerTool>
       </compileType>
-      <item path="Cliente.c" ex="false" tool="0" flavor2="0">
+      <item path="Cliente.c" ex="true" tool="0" flavor2="0">
         <cTool>
           <stripSymbols>true</stripSymbols>
           <commandlineTool>sudo gcc</commandlineTool>
@@ -51,7 +51,7 @@
       </item>
       <item path="Estruturas.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="Servidor.c" ex="true" tool="0" flavor2="0">
+      <item path="Servidor.c" ex="false" tool="0" flavor2="0">
         <cTool>
           <commandlineTool>sudo gcc</commandlineTool>
         </cTool>
